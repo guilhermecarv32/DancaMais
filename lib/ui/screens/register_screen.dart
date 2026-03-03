@@ -19,6 +19,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
   final _confirmPassController = TextEditingController();
+  bool _isPassObscure = true;
+  bool _isConfirmPassObscure = true;
 
   @override
   void dispose() {
@@ -124,14 +126,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _passController,
                       hint: "Senha",
                       icon: Icons.lock_outline_rounded,
-                      isObscure: true,
+                      isObscure: _isPassObscure,
+                      suffixIcon: IconButton(
+                        icon: Icon(_isPassObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _isPassObscure = !_isPassObscure),
+                      ),
                     ),
                     const SizedBox(height: 15),
                     _buildModernInput(
                       controller: _confirmPassController,
                       hint: "Confirmar Senha",
                       icon: Icons.lock_reset_rounded,
-                      isObscure: true,
+                      isObscure: _isConfirmPassObscure,
+                      suffixIcon: IconButton(
+                        icon: Icon(_isConfirmPassObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _isConfirmPassObscure = !_isConfirmPassObscure),
+                      ),
                     ),
 
                     const SizedBox(height: 50),
@@ -219,6 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required String hint,
     required IconData icon,
     bool isObscure = false,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -238,6 +249,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey[600]),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(20),
         ),

@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _isPasswordObscure = true;
 
   @override
   void dispose() {
@@ -110,7 +111,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passwordController,
                       hint: "Sua senha",
                       icon: Icons.lock_outline_rounded,
-                      isObscure: true,
+                      isObscure: _isPasswordObscure, // Usa a variável
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () => setState(() => _isPasswordObscure = !_isPasswordObscure),
+                      ),
                     ),
 
                     Row(
@@ -206,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildModernInput({required TextEditingController controller, required String hint, required IconData icon, bool isObscure = false}) {
+  Widget _buildModernInput({required TextEditingController controller, required String hint, required IconData icon, bool isObscure = false, Widget? suffixIcon,}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -225,6 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey[600]),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(20),
         ),
