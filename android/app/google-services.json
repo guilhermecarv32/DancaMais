@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324322083796",
+    "project_id": "dancamais-1c057",
+    "storage_bucket": "dancamais-1c057.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324322083796:android:9c84cb9694a20aebd7cc41",
+        "android_client_info": {
+          "package_name": "com.example.dancamais"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzNMA6J3VLxoubvT3Wd78QnzBjUaBo7bQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
