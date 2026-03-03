@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-
-// Importações dos seus arquivos de arquitetura
-import 'core/theme/app_theme.dart';
-import 'ui/screens/login_screen.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'firebase_options.dart';
+import 'core/theme/app_theme.dart';
 import 'logic/auth_bloc/auth_bloc.dart';
 import 'data/services/auth_service.dart';
+import 'ui/screens/login_screen.dart';
 
 void main() async {
-  // Garante que as ligações do Flutter estejam prontas antes de iniciar o Firebase [cite: 184]
+  // Garante a inicialização dos bindings do Flutter
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializa o Firebase com as configurações geradas pelo FlutterFire CLI [cite: 308]
+  // Inicializa o Firebase para persistência e autenticação na nuvem
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -27,15 +24,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  return MultiBlocProvider(
-    providers: [
-      BlocProvider(create: (context) => AuthBloc(AuthService())),
-    ],
-    child: MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: DancaMaisTheme.theme,
-      home: const LoginScreen(),
-    ),
-  );
-}
+    // MultiBlocProvider permite que o estado de autenticação seja acessado em todo o app
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => AuthBloc(AuthService()),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'DançaMais',
+        theme: AppTheme.themeData, 
+        home: const LoginScreen(),
+      ),
+    );
+  }
 }

@@ -27,34 +27,59 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const Color primaryColor = AppTheme.primary;
+    const Color darkColor = Color(0xFF6C2E21);
+
     return Scaffold(
       body: Stack(
         children: [
-          // 1. FUNDO COM TEXTURA GENÉRICA
+          // 1. FUNDO COM GRADIENTE SUTIL
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.background,
-                  AppTheme.primary.withOpacity(0.05), // Uso genérico da cor
-                  AppTheme.background,
+                  Colors.white,
+                  Colors.orange.shade50.withOpacity(0.5), // Um toque de cor no fundo
+                  Colors.white,
                 ],
               ),
             ),
           ),
 
-          // Formas decorativas usando cores secundárias e terciárias
-          _buildDecorShape(top: -100, left: -50, color: AppTheme.primary, opacity: 0.08),
-          _buildDecorShape(bottom: 50, right: -80, color: AppTheme.secondary, opacity: 0.05),
+          // 2. FORMAS DECORATIVAS (Baixa Opacidade para não "gritar")
+          Positioned(
+            top: -100,
+            left: -50,
+            child: Opacity(
+              opacity: 0.08, // Quase invisível, apenas para dar textura
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 50,
+            right: -80,
+            child: Opacity(
+              opacity: 0.05,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: const BoxDecoration(color: darkColor, shape: BoxShape.circle),
+              ),
+            ),
+          ),
 
-          // 2. CONTEÚDO
+          // 3. CONTEÚDO PRINCIPAL
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: SizedBox(
-                height: MediaQuery.of(context).size.height - 50,
+                height: MediaQuery.of(context).size.height - 100,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,21 +89,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.secondary, // Nome genérico
+                        color: darkColor,
                         letterSpacing: -1.5,
                       ),
                     ),
                     const Text(
                       "Pronto para o próximo passo?",
-                      style: TextStyle(fontSize: 18, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
                     ),
                     const SizedBox(height: 60),
 
-                    _buildInput(controller: _emailController, hint: "Email", icon: Icons.alternate_email),
+                    _buildModernInput(
+                      controller: _emailController,
+                      hint: "Seu e-mail",
+                      icon: Icons.alternate_email_rounded,
+                    ),
                     const SizedBox(height: 20),
-                    _buildInput(controller: _passwordController, hint: "Senha", icon: Icons.lock_outline, isObscure: true),
 
-                    // Checkbox e Link
+                    _buildModernInput(
+                      controller: _passwordController,
+                      hint: "Sua senha",
+                      icon: Icons.lock_outline_rounded,
+                      isObscure: true,
+                    ),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -87,21 +121,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             Checkbox(
                               value: _rememberMe,
                               onChanged: (v) => setState(() => _rememberMe = v!),
-                              activeColor: AppTheme.primary,
+                              activeColor: primaryColor,
                             ),
-                            const Text("Lembrar de mim", style: TextStyle(color: AppTheme.textSecondary)),
+                            const Text("Lembrar de mim", style: TextStyle(color: Colors.grey)),
                           ],
                         ),
                         TextButton(
                           onPressed: () {},
-                          child: const Text("Esqueci minha senha", 
-                            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            "Esqueci minha senha",
+                            style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 40),
 
-                    // Botão com BLoC e cores genéricas
+                    // Lógica do Botão Entrar
                     BlocConsumer<AuthBloc, AuthState>(
                       listener: (context, state) {
                         if (state is Authenticated) {
@@ -115,6 +151,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: state is AuthLoading 
                             ? null 
                             : () => context.read<AuthBloc>().add(LoginRequested(_emailController.text, _passwordController.text)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 4,
+                          ),
                           child: state is AuthLoading
                             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : const Text("Entrar", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -123,18 +166,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Link de Cadastro
+                    // Link de Cadastro (Corrigido para onTap)
                     Center(
                       child: GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectionScreen())),
+                        // Na LoginScreen.dart, substitua o Navigator.push por este:
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => const SelectionScreen(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                // Faz o conteúdo da tela nova aparecer suavemente (Fade)
+                                return FadeTransition(opacity: animation, child: child);
+                              },
+                            ),
+                          );
+                        },
                         child: RichText(
                           text: const TextSpan(
-                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
                             children: [
                               TextSpan(text: "Não tem conta? "),
                               TextSpan(
                                 text: "Cadastre-se!",
-                                style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -151,30 +206,25 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Helpers para manter o código limpo
-  Widget _buildDecorShape({double? top, double? left, double? bottom, double? right, required Color color, required double opacity}) {
-    return Positioned(
-      top: top, left: left, bottom: bottom, right: right,
-      child: Opacity(
-        opacity: opacity,
-        child: Container(width: 300, height: 300, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      ),
-    );
-  }
-
-  Widget _buildInput({required TextEditingController controller, required String hint, required IconData icon, bool isObscure = false}) {
+  Widget _buildModernInput({required TextEditingController controller, required String hint, required IconData icon, bool isObscure = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
         obscureText: isObscure,
         decoration: InputDecoration(
           hintText: hint,
-          prefixIcon: Icon(icon, color: AppTheme.textSecondary),
+          prefixIcon: Icon(icon, color: Colors.grey[600]),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(20),
         ),
