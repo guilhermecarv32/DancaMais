@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
 import '../../logic/auth_bloc/auth_state.dart';
+import 'selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,9 +14,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controladores para capturar o que o usuário digita
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _rememberMe = false;
 
   @override
   void dispose() {
@@ -27,153 +28,155 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ResizeToAvoidBottomInset evita que o teclado quebre o layout
-      resizeToAvoidBottomInset: true,
-      body: SingleChildScrollView(
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          child: Stack(
-            children: [
-              // Elemento visual de fundo (Círculo Laranja do seu design)
-              Positioned(
-                top: -80,
-                right: -60,
-                child: Container(
-                  width: 280,
-                  height: 280,
-                  decoration: const BoxDecoration(
-                    color: DancaMaisTheme.primaryOrange,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+      body: Stack(
+        children: [
+          // 1. FUNDO COM TEXTURA GENÉRICA
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.background,
+                  AppTheme.primary.withOpacity(0.05), // Uso genérico da cor
+                  AppTheme.background,
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30.0),
+            ),
+          ),
+
+          // Formas decorativas usando cores secundárias e terciárias
+          _buildDecorShape(top: -100, left: -50, color: AppTheme.primary, opacity: 0.08),
+          _buildDecorShape(bottom: 50, right: -80, color: AppTheme.secondary, opacity: 0.05),
+
+          // 2. CONTEÚDO
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height - 50,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
                       "Olá!",
                       style: TextStyle(
-                        fontSize: 42, 
+                        fontSize: 48,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppTheme.secondary, // Nome genérico
+                        letterSpacing: -1.5,
                       ),
                     ),
                     const Text(
                       "Pronto para o próximo passo?",
-                      style: TextStyle(fontSize: 18, color: Colors.black54),
+                      style: TextStyle(fontSize: 18, color: AppTheme.textSecondary),
                     ),
                     const SizedBox(height: 60),
-                    
-                    // Campo de Email [cite: 372-374]
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: "Email",
-                        prefixIcon: Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
-                        ),
-                      ),
-                    ),
+
+                    _buildInput(controller: _emailController, hint: "Email", icon: Icons.alternate_email),
                     const SizedBox(height: 20),
-                    
-                    // Campo de Senha [cite: 372-374]
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: "Senha",
-                        prefixIcon: Icon(Icons.lock_outline),
-                        suffixIcon: Icon(Icons.visibility_off_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(30)),
+                    _buildInput(controller: _passwordController, hint: "Senha", icon: Icons.lock_outline, isObscure: true),
+
+                    // Checkbox e Link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (v) => setState(() => _rememberMe = v!),
+                              activeColor: AppTheme.primary,
+                            ),
+                            const Text("Lembrar de mim", style: TextStyle(color: AppTheme.textSecondary)),
+                          ],
                         ),
-                      ),
-                    ),
-                    
-                    // Esqueci minha senha [cite: 373]
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Lógica de recuperação futuramente
-                        },
-                        child: const Text(
-                          "Esqueci minha senha", 
-                          style: TextStyle(color: DancaMaisTheme.primaryOrange),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text("Esqueci minha senha", 
+                            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 30),
-                    
-                    // Botão Entrar com Lógica de BLoC [cite: 379]
+                    const SizedBox(height: 40),
+
+                    // Botão com BLoC e cores genéricas
                     BlocConsumer<AuthBloc, AuthState>(
                       listener: (context, state) {
                         if (state is Authenticated) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Bem-vindo ao DançaMais!")),
-                          );
-                          // Navegação para Dashboard virá aqui
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bem-vindo!")));
                         } else if (state is AuthError) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(state.message),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.red));
                         }
                       },
                       builder: (context, state) {
-                        return SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            onPressed: state is AuthLoading
-                                ? null
-                                : () {
-                                    context.read<AuthBloc>().add(
-                                          LoginRequested(
-                                            _emailController.text.trim(),
-                                            _passwordController.text.trim(),
-                                          ),
-                                        );
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: state is AuthLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    "Entrar", 
-                                    style: TextStyle(fontSize: 18, color: Colors.white),
-                                  ),
-                          ),
+                        return ElevatedButton(
+                          onPressed: state is AuthLoading 
+                            ? null 
+                            : () => context.read<AuthBloc>().add(LoginRequested(_emailController.text, _passwordController.text)),
+                          child: state is AuthLoading
+                            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text("Entrar", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         );
                       },
                     ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Link para Cadastro [cite: 374]
+                    const SizedBox(height: 30),
+
+                    // Link de Cadastro
                     Center(
-                      child: TextButton(
-                        onPressed: () {
-                          // Navegação para a tela de cadastro
-                        },
-                        child: const Text("Não tem conta? Cadastre-se!"),
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectionScreen())),
+                        child: RichText(
+                          text: const TextSpan(
+                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                            children: [
+                              TextSpan(text: "Não tem conta? "),
+                              TextSpan(
+                                text: "Cadastre-se!",
+                                style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Helpers para manter o código limpo
+  Widget _buildDecorShape({double? top, double? left, double? bottom, double? right, required Color color, required double opacity}) {
+    return Positioned(
+      top: top, left: left, bottom: bottom, right: right,
+      child: Opacity(
+        opacity: opacity,
+        child: Container(width: 300, height: 300, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      ),
+    );
+  }
+
+  Widget _buildInput({required TextEditingController controller, required String hint, required IconData icon, bool isObscure = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isObscure,
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: Icon(icon, color: AppTheme.textSecondary),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(20),
         ),
       ),
     );
