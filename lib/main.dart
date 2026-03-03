@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'logic/auth_bloc/auth_bloc.dart';
 import 'data/services/auth_service.dart';
 import 'ui/screens/login_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
   // Garante a inicialização dos bindings do Flutter
@@ -14,6 +15,10 @@ void main() async {
   // Inicializa o Firebase para persistência e autenticação na nuvem
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.debug, // Essencial para emuladores
   );
 
   runApp(const MyApp());
