@@ -10,8 +10,7 @@ class TeacherDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final Color primaryColor = AppTheme.primary;
-    // Usando a cor secundária (marrom) para os textos de destaque
-    const Color darkColor = AppTheme.secondary; 
+    const Color darkColor = AppTheme.secondary;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -22,50 +21,22 @@ class TeacherDashboard extends StatelessWidget {
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
           final String nomeCompleto = userData['nome'] ?? "Professor";
-          // Lógica do primeiro nome que combinamos
           final String primeiroNome = nomeCompleto.trim().split(' ').first;
 
           return Column(
             children: [
-              // 1. NOVO CABEÇALHO: CLEAN COM DESTAQUE LATERAL
               _buildSidebarHeader(primeiroNome, primaryColor, darkColor, context),
-
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   children: [
-                    // 2. HERO CARD
-                    _buildHeroCard("Próxima Aula", "Forró Iniciante", "18:00", primaryColor),
-
+                    _buildAgendaSection(primaryColor, darkColor),
                     const SizedBox(height: 35),
-
-                    // 3. AÇÕES RÁPIDAS
-                    const Text(
-                      "O que vamos fazer?",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                    ),
+                    _buildSectionHeader("Ações Rápidas", darkColor),
                     const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildQuickAction(Icons.checklist_rtl_rounded, "Presença", Colors.blue),
-                        _buildQuickAction(Icons.stars_rounded, "Dar XP", Colors.amber),
-                        _buildQuickAction(Icons.chat_bubble_rounded, "Avisos", Colors.purple),
-                      ],
-                    ),
-
+                    _buildQuickActionsRow(),
                     const SizedBox(height: 40),
-
-                    // 4. ALUNOS RECENTES (Ex: Guilherme)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text("Alunos Recentes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        TextButton(onPressed: () {}, child: const Text("Ver todos")),
-                      ],
-                    ),
-                    _buildRecentStudent("Guilherme Carvalho", "Nível 1", "0 XP"),
-                    _buildRecentStudent("Ana Silva", "Nível 3", "240 XP"),
+                    _buildTurmasSection(primaryColor, darkColor),
                   ],
                 ),
               ),
@@ -77,67 +48,93 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  // --- O NOVO COMPONENTE DE CABEÇALHO ---
-
   Widget _buildSidebarHeader(String name, Color primary, Color dark, BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(25, 70, 25, 30),
-      decoration: BoxDecoration(
-        color: AppTheme.background, // Fundo limpo sem fade
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.05), width: 1),
-        ),
-      ),
       child: Row(
         children: [
-          // BARRA LATERAL DE DESTAQUE (Substitui o Fade)
-          Container(
-            width: 5,
-            height: 50,
-            decoration: BoxDecoration(
-              color: primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+          Container(width: 5, height: 50, decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(10))),
           const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Olá, $name!",
-                  style: TextStyle(color: dark, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -1),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                // Data mantida para o dia do projeto
-                const Text(
-                  "Terça-feira, 3 de Março de 2026",
-                  style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
-                ),
+                Text("Olá, $name!", style: TextStyle(color: dark, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                const Text("Terça-feira, 3 de Março de 2026", style: TextStyle(color: Colors.grey, fontSize: 14)),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () => FirebaseAuth.instance.signOut(),
-            icon: Icon(Icons.logout_rounded, color: Colors.grey[400], size: 22),
+          IconButton(onPressed: () => FirebaseAuth.instance.signOut(), icon: Icon(Icons.logout_rounded, color: Colors.grey[400])),
+        ],
+      ),
+    );
+  }
+
+  // --- AGENDA COM EFEITO EMPILHADO ---
+  Widget _buildAgendaSection(Color primary, Color dark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Agenda de Hoje", dark),
+          const SizedBox(height: 15),
+          _buildStackedCards(primary, dark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStackedCards(Color primary, Color dark) {
+    const double heroHeight = 110.0;
+    const double peekAmount = 28.0;
+
+    final subcards = [
+      {"title": "Samba de Gafieira", "level": "Intermediário", "time": "19:30"},
+      {"title": "Zouk", "level": "Geral", "time": "21:00"},
+    ];
+
+    final double totalHeight = heroHeight + (subcards.length * peekAmount);
+
+    return SizedBox(
+      height: totalHeight,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // Subcards embaixo (renderizados primeiro = atrás)
+          for (int i = subcards.length - 1; i >= 0; i--)
+            Positioned(
+              top: heroHeight - 20 + ((i + 1) * peekAmount) - peekAmount,
+              left: (i + 1) * 6.0,
+              right: (i + 1) * 6.0,
+              child: _buildSubClassCardStacked(
+                subcards[i]["title"]!,
+                subcards[i]["level"]!,
+                subcards[i]["time"]!,
+                dark,
+              ),
+            ),
+
+          // Hero card por cima
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildHeroCard("PRÓXIMA AULA", "Forró Iniciante", "18:00", primary),
           ),
         ],
       ),
     );
   }
 
-  // --- RESTANTE DOS WIDGETS (HeroCard, QuickAction, RecentStudent) ---
-  // (Mantenha os métodos conforme as versões anteriores que você gostou)
-
   Widget _buildHeroCard(String label, String title, String time, Color color) {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -145,77 +142,156 @@ class TeacherDashboard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w800)),
+              Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
               const SizedBox(height: 8),
               Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             ],
           ),
-          Text(time, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(15)),
+            child: Text(time, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickAction(IconData icon, String label, Color color) {
-    return Column(
-      children: [
-        Container(
-          width: 70, height: 70,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 15)],
-          ),
-          child: Icon(icon, color: color, size: 30),
-        ),
-        const SizedBox(height: 12),
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-      ],
-    );
-  }
-
-  Widget _buildRecentStudent(String name, String level, String xp) {
+  Widget _buildSubClassCardStacked(String title, String level, String time, Color dark) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.grey[100]!),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.08)),
       ),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: Colors.grey[100], child: const Icon(Icons.person, color: Colors.grey)),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text("$level • $xp", style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+          Text(time, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: dark.withOpacity(0.5))),
+          const SizedBox(width: 14),
+          Container(width: 1, height: 16, color: Colors.grey.withOpacity(0.2)),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(level, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            ],
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.grey),
         ],
       ),
     );
   }
 
-  Widget _buildBottomNav(Color color) {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: color,
-      unselectedItemColor: Colors.grey[300],
-      showSelectedLabels: false,
-      elevation: 0,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: ""),
-        BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: ""),
-        BottomNavigationBarItem(icon: Icon(Icons.add_circle_rounded, size: 40), label: ""),
-        BottomNavigationBarItem(icon: Icon(Icons.message_rounded), label: ""),
-        BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: ""),
+  Widget _buildTurmasSection(Color primary, Color dark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            children: [
+              Text("Turmas", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: dark)),
+              const Spacer(),
+              Text("Ver Tudo >>", style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15),
+        SizedBox(
+          height: 175,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 25, right: 10),
+            children: [
+              _buildTurmaCard("Forró pé-de-serra", "Iniciante 1", "Definir Agora", true, primary, dark),
+              _buildTurmaCard("Forró pé-de-serra", "Iniciante 2", "Manivela", false, primary, dark),
+            ],
+          ),
+        ),
       ],
     );
   }
+
+  Widget _buildTurmaCard(String t, String s, String b, bool p, Color pr, Color d) {
+    return Container(
+      width: 210,
+      margin: const EdgeInsets.only(right: 15),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: d)),
+          Text(s, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: p ? pr : Colors.white,
+                foregroundColor: p ? Colors.white : pr,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: pr)),
+              ),
+              child: Text(b, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, Color dark) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 25),
+    child: Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: dark.withOpacity(0.8))),
+  );
+
+  Widget _buildQuickActionsRow() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 25),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildActionItem(Icons.checklist_rounded, "Presença", Colors.blue),
+        _buildActionItem(Icons.stars_rounded, "Dar XP", Colors.amber),
+        _buildActionItem(Icons.campaign_rounded, "Aviso", Colors.purple),
+      ],
+    ),
+  );
+
+  Widget _buildActionItem(IconData i, String l, Color c) => Column(
+    children: [
+      Container(width: 65, height: 65, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: Icon(i, color: c, size: 28)),
+      const SizedBox(height: 8),
+      Text(l, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+    ],
+  );
+
+  Widget _buildBottomNav(Color c) => BottomNavigationBar(
+    type: BottomNavigationBarType.fixed,
+    selectedItemColor: c,
+    unselectedItemColor: Colors.grey[300],
+    showSelectedLabels: false,
+    elevation: 0,
+    items: const [
+      BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 28), label: ""),
+      BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded, size: 28), label: ""),
+      BottomNavigationBarItem(icon: Icon(Icons.add_circle_rounded, size: 40), label: ""),
+      BottomNavigationBarItem(icon: Icon(Icons.message_rounded, size: 28), label: ""),
+      BottomNavigationBarItem(icon: Icon(Icons.settings_rounded, size: 28), label: ""),
+    ],
+  );
 }
