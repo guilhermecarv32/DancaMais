@@ -7,16 +7,13 @@ class AuthService {
   Stream<User?> get user => _auth.authStateChanges();
 
   // Função de Login [cite: 372]
-  Future<User?> loginWithEmail(String email, String password) async {
+  Future<User?> signInWithEmail(String email, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email, 
-        password: password
-      );
+      final result = await _auth.signInWithEmailAndPassword(email: email, password: password);
       return result.user;
     } catch (e) {
-      print("Erro no Login: ${e.toString()}");
-      return null;
+      print("Erro no AuthService: $e");
+      rethrow;
     }
   }
 

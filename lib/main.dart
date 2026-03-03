@@ -1,3 +1,4 @@
+import 'package:dancamais/ui/widgets/auth_wrapper.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,7 +6,6 @@ import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'logic/auth_bloc/auth_bloc.dart';
 import 'data/services/auth_service.dart';
-import 'ui/screens/login_screen.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'DançaMais',
         theme: AppTheme.themeData, 
-        home: const LoginScreen(),
+        home: const AuthWrapper(),
       ),
     );
   }

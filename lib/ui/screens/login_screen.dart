@@ -42,19 +42,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   Colors.white,
-                  Colors.orange.shade50.withOpacity(0.5), // Um toque de cor no fundo
+                  Colors.orange.shade50.withOpacity(0.5),
                   Colors.white,
                 ],
               ),
             ),
           ),
 
-          // 2. FORMAS DECORATIVAS (Baixa Opacidade para não "gritar")
+          // 2. FORMAS DECORATIVAS
           Positioned(
             top: -100,
             left: -50,
             child: Opacity(
-              opacity: 0.08, // Quase invisível, apenas para dar textura
+              opacity: 0.08,
               child: Container(
                 width: 300,
                 height: 300,
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passwordController,
                       hint: "Sua senha",
                       icon: Icons.lock_outline_rounded,
-                      isObscure: _isPasswordObscure, // Usa a variável
+                      isObscure: _isPasswordObscure,
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -145,20 +145,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Lógica do Botão Entrar
+                    // Lógica do Botão Entrar com Diagnóstico
                     BlocConsumer<AuthBloc, AuthState>(
                       listener: (context, state) {
                         if (state is Authenticated) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bem-vindo!")));
+                          // DIAGNÓSTICO: Isso aparecerá no console do VS Code
+                          print("✅ SUCESSO: AuthBloc emitiu estado Authenticated!");
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Bem-vindo!"))
+                          );
                         } else if (state is AuthError) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message), backgroundColor: Colors.red));
+                          // DIAGNÓSTICO: Mostra o erro exato do Firebase
+                          print("❌ ERRO NO LOGIN: ${state.message}");
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(state.message), backgroundColor: Colors.red)
+                          );
                         }
                       },
                       builder: (context, state) {
                         return ElevatedButton(
                           onPressed: state is AuthLoading 
                             ? null 
-                            : () => context.read<AuthBloc>().add(LoginRequested(_emailController.text, _passwordController.text)),
+                            : () => context.read<AuthBloc>().add(
+                                LoginRequested(_emailController.text.trim(), _passwordController.text.trim())
+                              ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
                             foregroundColor: Colors.white,
@@ -174,17 +184,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Link de Cadastro (Corrigido para onTap)
                     Center(
                       child: GestureDetector(
-                        // Na LoginScreen.dart, substitua o Navigator.push por este:
                         onTap: () {
                           Navigator.push(
                             context,
                             PageRouteBuilder(
                               pageBuilder: (context, animation, secondaryAnimation) => const SelectionScreen(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                // Faz o conteúdo da tela nova aparecer suavemente (Fade)
                                 return FadeTransition(opacity: animation, child: child);
                               },
                             ),
