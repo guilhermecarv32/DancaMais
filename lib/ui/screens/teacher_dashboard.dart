@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -6,100 +8,108 @@ class TeacherDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     const Color primaryColor = AppTheme.primary;
     const Color darkColor = Color(0xFF6C2E21);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Stack(
-        children: [
-          // 1. FORMAS DECORATIVAS (Mantendo a identidade das telas anteriores)
-          Positioned(
-            top: -50,
-            right: -100,
-            child: _buildDecorShape(color: primaryColor, opacity: 0.05, size: 250),
-          ),
+      body: StreamBuilder<DocumentSnapshot>(
+        // Escuta os dados do professor em tempo real
+        stream: FirebaseFirestore.instance.collection('usuarios').doc(user?.uid).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // 2. CONTEÚDO PRINCIPAL
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // HEADER CUSTOMIZADO
-                _buildHeader(darkColor),
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("Erro ao carregar perfil."));
+          }
 
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    children: [
-                      // SEÇÃO: ENGAJAMENTO
-                      _buildSectionTitle("Engajamento", darkColor),
-                      const SizedBox(height: 15),
-                      SizedBox(
-                        height: 100,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            _buildEngagementCard(
-                              "Aluno subiu para o nível 5!",
-                              Icons.emoji_events_rounded,
-                              primaryColor,
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          final String nomeProfessor = userData['nome'] ?? "Professor";
+
+          return Stack(
+            children: [
+              // 1. FORMAS DECORATIVAS (Identidade Visual)
+              Positioned(
+                top: -50,
+                right: -100,
+                child: _buildDecorShape(color: primaryColor, opacity: 0.05, size: 250),
+              ),
+
+              // 2. CONTEÚDO PRINCIPAL
+              SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // HEADER DINÂMICO
+                    _buildHeader(nomeProfessor, darkColor, context),
+
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        children: [
+                          // SEÇÃO: ENGAJAMENTO
+                          _buildSectionTitle("Engajamento", darkColor),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            height: 100,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                _buildEngagementCard(
+                                  "Guilherme subiu para o nível 2!", // Exemplo real
+                                  Icons.emoji_events_rounded,
+                                  primaryColor,
+                                ),
+                                _buildEngagementCard(
+                                  "12 alunos concluíram 'Giro Simples'",
+                                  Icons.school_rounded,
+                                  Colors.blueAccent,
+                                ),
+                              ],
                             ),
-                            _buildEngagementCard(
-                              "12 alunos concluíram 'Giro Simples'",
-                              Icons.school_rounded,
-                              Colors.blueAccent,
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
 
-                      const SizedBox(height: 30),
+                          const SizedBox(height: 30),
 
-                      // SEÇÃO: AULAS DE HOJE
-                      _buildSectionTitle("Aulas de Hoje", darkColor),
-                      const SizedBox(height: 15),
-                      _buildClassCard(
-                        "Forró pé-de-serra",
-                        "Iniciante 1 e Iniciante 2",
-                        "18:00",
-                        primaryColor,
-                      ),
-                      _buildClassCard(
-                        "Bachata",
-                        "Geral",
-                        "20:30",
-                        darkColor,
-                      ),
+                          // SEÇÃO: AULAS DE HOJE
+                          _buildSectionTitle("Aulas de Hoje", darkColor),
+                          const SizedBox(height: 15),
+                          _buildClassCard("Forró pé-de-serra", "Iniciante 1 e 2", "18:00", primaryColor),
+                          _buildClassCard("Bachata", "Geral", "20:30", darkColor),
 
-                      const SizedBox(height: 30),
+                          const SizedBox(height: 30),
 
-                      // SEÇÃO: TURMAS
-                      _buildSectionTitle("Turmas", darkColor),
-                      const SizedBox(height: 15),
-                      _buildTurmaCard(
-                        "Forró pé-de-serra - Iniciante 1",
-                        "Passo da Semana:",
-                        "Definir Agora",
-                        true,
-                        primaryColor,
+                          // SEÇÃO: TURMAS
+                          _buildSectionTitle("Turmas", darkColor),
+                          const SizedBox(height: 15),
+                          _buildTurmaCard(
+                            "Forró pé-de-serra - Iniciante 1",
+                            "Passo da Semana:",
+                            "Definir Agora",
+                            true,
+                            primaryColor,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
-      // BOTTOM NAVIGATION conforme protótipo
       bottomNavigationBar: _buildBottomNav(primaryColor),
     );
   }
 
   // --- COMPONENTES DA INTERFACE ---
 
-  Widget _buildHeader(Color color) {
+  Widget _buildHeader(String name, Color color, BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
@@ -112,13 +122,40 @@ class TeacherDashboard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Olá, Professor!", 
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-              Text("Ter, 3 de Março de 2026", // Data atualizada para o contexto real
-                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16)),
+              Text("Olá, $name!", 
+                style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+              const Text("Ter, 3 de Março de 2026", // Data atual
+                style: TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
-          const Icon(Icons.notifications_active_outlined, color: Colors.white, size: 28),
+          // Botão de Logout integrado ao Perfil
+          GestureDetector(
+            onTap: () => _showLogoutDialog(context),
+            child: const CircleAvatar(
+              backgroundColor: Colors.white24,
+              child: Icon(Icons.logout, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Sair"),
+        content: const Text("Deseja desconectar do DançaMais?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+          TextButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut(); // O AuthWrapper cuidará da troca de tela!
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text("Sair", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -127,9 +164,9 @@ class TeacherDashboard extends StatelessWidget {
   Widget _buildSectionTitle(String title, Color color) {
     return Row(
       children: [
-        Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+        Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(width: 5),
-        const Icon(Icons.info_outline, size: 18, color: Colors.grey),
+        const Icon(Icons.info_outline, size: 16, color: Colors.grey),
       ],
     );
   }
@@ -146,7 +183,7 @@ class TeacherDashboard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 30),
+          Icon(icon, color: color, size: 28),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
         ],
@@ -156,13 +193,13 @@ class TeacherDashboard extends StatelessWidget {
 
   Widget _buildClassCard(String title, String subtitle, String time, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border(left: BorderSide(color: color, width: 5)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+        borderRadius: BorderRadius.circular(18),
+        border: Border(left: BorderSide(color: color, width: 4)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,11 +207,11 @@ class TeacherDashboard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text(subtitle, style: const TextStyle(color: Colors.grey)),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
             ],
           ),
-          Text(time, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(time, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
@@ -186,15 +223,15 @@ class TeacherDashboard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(turma, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -202,6 +239,7 @@ class TeacherDashboard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: isPending ? color : Colors.white,
                 foregroundColor: isPending ? Colors.white : color,
+                elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color)),
               ),
               child: Text(btnText),

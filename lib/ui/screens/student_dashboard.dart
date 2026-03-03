@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -6,56 +8,82 @@ class StudentDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     const Color primaryColor = AppTheme.primary;
     const Color darkColor = Color(0xFF6C2E21);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Stack(
-        children: [
-          // 1. FORMAS DECORATIVAS (Identidade Visual)
-          Positioned(
-            top: -60,
-            left: -80,
-            child: _buildDecorShape(color: primaryColor, opacity: 0.05, size: 280),
-          ),
+      body: StreamBuilder<DocumentSnapshot>(
+        // Escuta os dados do aluno no Firestore em tempo real
+        stream: FirebaseFirestore.instance.collection('usuarios').doc(user?.uid).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          // 2. CONTEÚDO
-          SafeArea(
-            child: Column(
-              children: [
-                // HEADER: Saudação ao Aluno
-                _buildHeader("Guilherme!", darkColor),
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("Erro ao carregar progresso."));
+          }
 
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    children: [
-                      const SizedBox(height: 30),
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          final String nome = userData['nome'] ?? "Aluno";
+          final int nivel = userData['nivel'] ?? 1;
+          final int xp = userData['xp'] ?? 0;
+          final List conquistas = userData['conquistas'] ?? [];
 
-                      // SEÇÃO DE PROGRESSO (Gamificação Central)
-                      _buildXPProgress(primaryColor, darkColor),
+          // Cálculo para o progresso circular (supondo 100 XP por nível)
+          double progresso = (xp % 100) / 100;
 
-                      const SizedBox(height: 40),
+          return Stack(
+            children: [
+              // 1. FORMAS DECORATIVAS (Identidade Visual)
+              Positioned(
+                top: -60,
+                left: -80,
+                child: _buildDecorShape(color: primaryColor, opacity: 0.05, size: 280),
+              ),
 
-                      // SEÇÃO: CONQUISTAS (Medalhas)
-                      _buildSectionHeader("Suas Conquistas", darkColor),
-                      const SizedBox(height: 15),
-                      _buildMedalsGrid(),
+              // 2. CONTEÚDO
+              SafeArea(
+                child: Column(
+                  children: [
+                    // HEADER: Saudação e Logout
+                    _buildHeader(nome.split(' ')[0], darkColor, context),
 
-                      const SizedBox(height: 30),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 25),
+                        children: [
+                          const SizedBox(height: 20),
 
-                      // SEÇÃO: PRÓXIMAS AULAS
-                      _buildSectionHeader("Próximos Passos", darkColor),
-                      const SizedBox(height: 15),
-                      _buildLessonCard("Giro Simples", "Forró", "Hoje, 18:00", primaryColor),
-                    ],
-                  ),
+                          // SEÇÃO DE PROGRESSO (Gamificação Dinâmica)
+                          _buildXPProgress(nivel, xp, progresso, primaryColor, darkColor),
+
+                          const SizedBox(height: 40),
+
+                          // SEÇÃO: CONQUISTAS (Medalhas Reais do Firestore)
+                          _buildSectionHeader("Suas Conquistas", darkColor),
+                          const SizedBox(height: 15),
+                          conquistas.isEmpty 
+                            ? _buildEmptyConquests() 
+                            : _buildMedalsGrid(conquistas),
+
+                          const SizedBox(height: 30),
+
+                          // SEÇÃO: PRÓXIMAS AULAS
+                          _buildSectionHeader("Próximos Passos", darkColor),
+                          const SizedBox(height: 15),
+                          _buildLessonCard("Giro Simples", "Forró", "Hoje, 18:00", primaryColor),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: _buildBottomNav(primaryColor),
     );
@@ -63,7 +91,7 @@ class StudentDashboard extends StatelessWidget {
 
   // --- COMPONENTES ---
 
-  Widget _buildHeader(String name, Color color) {
+  Widget _buildHeader(String firstName, Color color, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(30),
       child: Row(
@@ -72,22 +100,46 @@ class StudentDashboard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Olá, $name", 
+              Text("Olá, $firstName", 
                 style: TextStyle(color: color, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1)),
               const Text("Vamos dançar?", style: TextStyle(color: Colors.grey, fontSize: 18)),
             ],
           ),
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: AppTheme.primary,
-            child: Icon(Icons.person, color: Colors.white),
+          // Botão de Sair para trocar de conta
+          GestureDetector(
+            onTap: () => _showLogoutDialog(context),
+            child: CircleAvatar(
+              radius: 25,
+              backgroundColor: AppTheme.primary.withOpacity(0.1),
+              child: const Icon(Icons.logout_rounded, color: AppTheme.primary),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildXPProgress(Color primary, Color dark) {
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Sair"),
+        content: const Text("Deseja voltar para a tela de login?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+          TextButton(
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut(); // O AuthWrapper detecta o nulo e redireciona
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text("Sair", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildXPProgress(int nivel, int xp, double progresso, Color primary, Color dark) {
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
@@ -97,7 +149,6 @@ class StudentDashboard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Gráfico Circular de XP
           Stack(
             alignment: Alignment.center,
             children: [
@@ -105,13 +156,13 @@ class StudentDashboard extends StatelessWidget {
                 width: 80,
                 height: 80,
                 child: CircularProgressIndicator(
-                  value: 0.1, // Representando o início da jornada (XP 0)
+                  value: progresso == 0 ? 0.05 : progresso, // Garante que a borda apareça mesmo com 0 XP
                   strokeWidth: 8,
                   backgroundColor: Colors.grey[200],
                   color: primary,
                 ),
               ),
-              const Text("1", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text("$nivel", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(width: 25),
@@ -119,10 +170,10 @@ class StudentDashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Nível 1", style: TextStyle(color: dark, fontSize: 22, fontWeight: FontWeight.bold)),
-                const Text("0 / 100 XP", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                Text("Nível $nivel", style: TextStyle(color: dark, fontSize: 22, fontWeight: FontWeight.bold)),
+                Text("$xp / 100 XP", style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                const Text("Faltam 100 XP para o Nível 2!", style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                const Text("Quase lá para o próximo nível!", style: TextStyle(fontSize: 12, color: AppTheme.primary)),
               ],
             ),
           ),
@@ -135,17 +186,23 @@ class StudentDashboard extends StatelessWidget {
     return Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color));
   }
 
-  Widget _buildMedalsGrid() {
-    // Lista de conquistas (atualmente vazia no Firestore)
+  Widget _buildEmptyConquests() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10),
+      child: Text("Você ainda não tem medalhas. Participe das aulas para ganhar!", 
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+    );
+  }
+
+  Widget _buildMedalsGrid(List conquistas) {
     return SizedBox(
       height: 100,
-      child: ListView(
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        children: [
-          _buildMedalIcon("Iniciante", Icons.auto_awesome, Colors.amber),
-          _buildMedalIcon("Ritmo", Icons.music_note, Colors.blue),
-          _buildMedalIcon("Primeiro Passo", Icons.directions_walk, Colors.green),
-        ],
+        itemCount: conquistas.length,
+        itemBuilder: (context, index) {
+          return _buildMedalIcon(conquistas[index], Icons.emoji_events, Colors.amber);
+        },
       ),
     );
   }
@@ -162,7 +219,9 @@ class StudentDashboard extends StatelessWidget {
             child: Icon(icon, color: color),
           ),
           const SizedBox(height: 5),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(label, textAlign: TextAlign.center, 
+            maxLines: 2, 
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
