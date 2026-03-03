@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dancamais/ui/screens/steps_library_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
@@ -216,12 +217,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     final Color primaryColor = AppTheme.primary;
     const Color darkColor = AppTheme.secondary;
 
-    // Navegação entre telas do menu inferior
+    // Localize esta parte dentro do arquivo teacher_dashboard.dart
     final List<Widget> _screens = [
-      _buildHomeScreen(user, primaryColor, darkColor),
-      const Center(child: Text("Minhas Turmas")),
-      const Center(child: Text("Biblioteca de Passos")),
-      const Center(child: Text("Perfil do Professor")),
+      _buildHomeScreen(user, primaryColor, darkColor), // Index 0: Home
+      const Center(child: Text("Minhas Turmas")),      // Index 1: Turmas
+      const StepsLibraryScreen(),                     // Index 2: Agora carrega sua Biblioteca!
+      const Center(child: Text("Perfil do Professor")), // Index 3: Perfil
     ];
 
     return Scaffold(
