@@ -38,13 +38,13 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
 
   // Dados: Label (Modalidade) e Title (Turma)
   final List<AulaItem> _aulas = const [
-    AulaItem(label: "FORRÓ", title: "Iniciante 1", time: "18:00", isHero: true),
+    AulaItem(label: "FORRÓ PÉ-DE-SERRA", title: "Iniciante 1", time: "18:00", isHero: true),
     AulaItem(title: "Samba de Gafieira", time: "19:30", level: "Intermediário"),
-    AulaItem(title: "Zouk", time: "21:00", level: "Geral"),
+    AulaItem(title: "K-Pop", time: "21:00", level: "Geral"),
   ];
 
   static const double _heroHeight = 110.0;
-  static const double _subHeight = 64.0; // Altura corrigida contra overflow
+  static const double _subHeight = 64.0;
   static const double _peekOffset = 20.0;
 
   @override
@@ -359,7 +359,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         ),
         const SizedBox(height: 15),
         SizedBox(
-          height: 195,
+          height: 155,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.only(left: 25, right: 10),
