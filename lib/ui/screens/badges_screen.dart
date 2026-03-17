@@ -41,45 +41,55 @@ class BadgesScreen extends StatelessWidget {
                       .map((c) => ConquistaModel.fromMap(c))
                       .toList();
 
-                  // Conquistas disponíveis mas ainda não obtidas
                   final idsObtidos =
                       conquistasObtidas.map((c) => c.id).toSet();
-                  final conquistasPendentes = ConquistaModel.conquistasPadrao
-                      .where((c) => !idsObtidos.contains(c.id))
-                      .toList();
 
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
-                    children: [
-                      // Card de progresso geral
-                      _buildProgressCard(nivel, xp, dark),
-                      const SizedBox(height: 30),
+                  // Conquistas pendentes vêm do Firestore
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('conquistasCustom')
+                        .snapshots(),
+                    builder: (context, conquSnap) {
+                      final todasCustom = conquSnap.data?.docs
+                              .map((d) => ConquistaModel.fromFirestore(d))
+                              .toList() ??
+                          [];
 
-                      // Conquistas obtidas
-                      if (conquistasObtidas.isNotEmpty) ...[
-                        _buildSectionTitle(
-                            '🏅 Conquistadas (${conquistasObtidas.length})',
-                            dark),
-                        const SizedBox(height: 15),
-                        ...conquistasObtidas.map(
-                            (c) => _buildConquistaCard(c, obtida: true)),
-                        const SizedBox(height: 30),
-                      ],
+                      final conquistasPendentes = todasCustom
+                          .where((c) => !idsObtidos.contains(c.id))
+                          .toList();
 
-                      // Conquistas bloqueadas
-                      if (conquistasPendentes.isNotEmpty) ...[
-                        _buildSectionTitle(
-                            '🔒 Em Progresso (${conquistasPendentes.length})',
-                            dark),
-                        const SizedBox(height: 15),
-                        ...conquistasPendentes.map(
-                            (c) => _buildConquistaCard(c, obtida: false)),
-                      ],
+                      return ListView(
+                        padding: const EdgeInsets.fromLTRB(25, 0, 25, 30),
+                        children: [
+                          _buildProgressCard(nivel, xp, dark),
+                          const SizedBox(height: 30),
 
-                      if (conquistasObtidas.isEmpty &&
-                          conquistasPendentes.isEmpty)
-                        _buildEmptyState(),
-                    ],
+                          if (conquistasObtidas.isNotEmpty) ...[
+                            _buildSectionTitle(
+                                '🏅 Conquistadas (${conquistasObtidas.length})',
+                                dark),
+                            const SizedBox(height: 15),
+                            ...conquistasObtidas.map(
+                                (c) => _buildConquistaCard(c, obtida: true)),
+                            const SizedBox(height: 30),
+                          ],
+
+                          if (conquistasPendentes.isNotEmpty) ...[
+                            _buildSectionTitle(
+                                '🔒 Em Progresso (${conquistasPendentes.length})',
+                                dark),
+                            const SizedBox(height: 15),
+                            ...conquistasPendentes.map(
+                                (c) => _buildConquistaCard(c, obtida: false)),
+                          ],
+
+                          if (conquistasObtidas.isEmpty &&
+                              conquistasPendentes.isEmpty)
+                            _buildEmptyState(),
+                        ],
+                      );
+                    },
                   );
                 },
               ),

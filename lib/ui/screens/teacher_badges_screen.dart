@@ -83,21 +83,19 @@ class TeacherBadgesScreen extends StatelessWidget {
   }
 
   Widget _buildConquistasList(BuildContext context) {
-    // Combina conquistas padrão do sistema com as customizadas salvas no Firestore
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('conquistasCustom')
           .snapshots(),
       builder: (context, snap) {
-        final customList = snap.data?.docs
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final todasConquistas = snap.data?.docs
                 .map((d) => ConquistaModel.fromFirestore(d))
                 .toList() ??
             [];
-
-        final todasConquistas = [
-          ...ConquistaModel.conquistasPadrao,
-          ...customList,
-        ];
 
         if (todasConquistas.isEmpty) {
           return _buildEmptyState();
@@ -128,7 +126,6 @@ class TeacherBadgesScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Ícone
           Container(
             width: 52,
             height: 52,
@@ -143,21 +140,55 @@ class TeacherBadgesScreen extends StatelessWidget {
           ),
           const SizedBox(width: 14),
 
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(conquista.nome,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: AppTheme.secondary)),
+                Row(children: [
+                  Expanded(
+                    child: Text(conquista.nome,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppTheme.secondary)),
+                  ),
+                  // Badge automática ou especial
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: conquista.isAutomatica
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      conquista.isAutomatica ? '⚡ Auto' : '👋 Manual',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: conquista.isAutomatica
+                              ? Colors.green
+                              : Colors.orange),
+                    ),
+                  ),
+                ]),
                 const SizedBox(height: 3),
                 Text(conquista.descricao,
-                    style:
-                        const TextStyle(color: Colors.grey, fontSize: 12)),
-                const SizedBox(height: 5),
+                    style: const TextStyle(
+                        color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 4),
+                // Critério legível
+                if (conquista.criterio != null) ...[
+                  Text(
+                    conquista.criterio!.descricaoLegivel,
+                    style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                ],
                 Row(children: [
                   const Icon(Icons.bolt_rounded,
                       size: 14, color: AppTheme.primary),
@@ -171,24 +202,27 @@ class TeacherBadgesScreen extends StatelessWidget {
             ),
           ),
 
-          // Botão conceder
-          GestureDetector(
-            onTap: () =>
-                _abrirBottomSheetConceder(context, conquista),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+          // Botão conceder (só para conquistas manuais)
+          if (conquista.isEspecial) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () =>
+                  _abrirBottomSheetConceder(context, conquista),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('Conceder',
+                    style: TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12)),
               ),
-              child: const Text('Conceder',
-                  style: TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12)),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -271,14 +305,8 @@ class _ConcederConquistaSheetState
 
     setState(() => _concedendo = true);
 
-    final conquistaObtida = ConquistaModel(
-      id: widget.conquista.id,
-      nome: widget.conquista.nome,
-      descricao: widget.conquista.descricao,
-      icone: widget.conquista.icone,
-      tipo: widget.conquista.tipo,
+    final conquistaObtida = widget.conquista.copyWith(
       dataObtida: DateTime.now(),
-      xpRecompensa: widget.conquista.xpRecompensa,
     );
 
     // Adiciona a conquista ao perfil do aluno e concede XP
@@ -583,7 +611,10 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
   final _nomeCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _iconeCtrl = TextEditingController(text: '🏅');
+  final _valorCtrl = TextEditingController(text: '1');
   int _xp = 50;
+  TipoGatilho _gatilho = TipoGatilho.passosAprendidos;
+  String? _modalidadeCriterio; // Usado quando gatilho = passosModalidade
   bool _salvando = false;
 
   @override
@@ -591,6 +622,7 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
     _nomeCtrl.dispose();
     _descCtrl.dispose();
     _iconeCtrl.dispose();
+    _valorCtrl.dispose();
     super.dispose();
   }
 
@@ -603,26 +635,55 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
       return;
     }
 
+    final valor = int.tryParse(_valorCtrl.text.trim()) ?? 1;
+
+    if (_gatilho == TipoGatilho.passosModalidade &&
+        _modalidadeCriterio == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Selecione a modalidade para este critério.')),
+      );
+      return;
+    }
+
     setState(() => _salvando = true);
 
-    final ref = FirebaseFirestore.instance.collection('conquistasCustom').doc();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final ref =
+        FirebaseFirestore.instance.collection('conquistasCustom').doc();
+
+    final criterio = _gatilho == TipoGatilho.especial
+        ? null
+        : CriterioConquista(
+            gatilho: _gatilho,
+            valor: valor,
+            modalidade: _gatilho == TipoGatilho.passosModalidade
+                ? _modalidadeCriterio
+                : null,
+          );
+
     final conquista = ConquistaModel(
       id: ref.id,
       nome: _nomeCtrl.text.trim(),
-      descricao: _descCtrl.text.trim(),
-      icone: _iconeCtrl.text.trim().isEmpty ? '🏅' : _iconeCtrl.text.trim(),
-      tipo: TipoConquista.especial,
+      descricao: _descCtrl.text.trim().isNotEmpty
+          ? _descCtrl.text.trim()
+          : criterio?.descricaoLegivel ?? '',
+      icone: _iconeCtrl.text.trim().isEmpty
+          ? '🏅'
+          : _iconeCtrl.text.trim(),
       xpRecompensa: _xp,
+      criterio: criterio,
+      professorId: uid,
     );
 
     await ref.set(conquista.toMap());
-
     if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Container(
       padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
@@ -661,11 +722,98 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
             _buildInput(_nomeCtrl, 'Ex: Mestre do Forró'),
             const SizedBox(height: 14),
 
-            _buildLabel('Descrição'),
+            _buildLabel('Descrição (opcional — gerada automaticamente)'),
             _buildInput(_descCtrl,
-                'Ex: Aprendeu todos os passos de Forró cadastrados.',
+                'Deixe em branco para gerar pelo critério',
                 maxLines: 2),
             const SizedBox(height: 14),
+
+            // ── Critério de disparo ──────────────────────────────
+            _buildLabel('Critério de disparo'),
+            _buildDropdown<TipoGatilho>(
+              value: _gatilho,
+              items: TipoGatilho.values,
+              label: (g) => _gatilhoLabel(g),
+              onChanged: (v) => setState(() {
+                _gatilho = v!;
+                _modalidadeCriterio = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+
+            // Valor numérico (não aparece para gatilho "especial")
+            if (_gatilho != TipoGatilho.especial) ...[
+              _buildLabel(_valorLabel()),
+              _buildInput(_valorCtrl, '1',
+                  keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+            ],
+
+            // Seletor de modalidade (só para passosModalidade)
+            if (_gatilho == TipoGatilho.passosModalidade) ...[
+              _buildLabel('Modalidade'),
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('configuracoes')
+                    .doc(uid)
+                    .snapshots(),
+                builder: (context, snap) {
+                  final data =
+                      snap.data?.data() as Map<String, dynamic>?;
+                  final modalidades =
+                      List<String>.from(data?['modalidades'] ?? []);
+
+                  if (modalidades.isEmpty) {
+                    return _buildAviso(
+                        'Cadastre modalidades em "Turmas" primeiro.');
+                  }
+
+                  return _buildDropdown<String>(
+                    value: _modalidadeCriterio,
+                    items: modalidades,
+                    label: (m) => m,
+                    hint: 'Selecione a modalidade',
+                    onChanged: (v) =>
+                        setState(() => _modalidadeCriterio = v),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Preview do critério
+            if (_gatilho != TipoGatilho.especial) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppTheme.primary.withOpacity(0.2)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.auto_awesome_rounded,
+                      color: AppTheme.primary, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Disparada automaticamente quando: '
+                      '${CriterioConquista(
+                        gatilho: _gatilho,
+                        valor: int.tryParse(_valorCtrl.text) ?? 1,
+                        modalidade: _modalidadeCriterio,
+                      ).descricaoLegivel}',
+                      style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             _buildLabel('Recompensa de XP: $_xp XP'),
             Slider(
@@ -708,6 +856,89 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
     );
   }
 
+  String _gatilhoLabel(TipoGatilho g) {
+    switch (g) {
+      case TipoGatilho.passosAprendidos:
+        return 'Movimentações aprendidas';
+      case TipoGatilho.nivelAtingido:
+        return 'Nível atingido';
+      case TipoGatilho.passosModalidade:
+        return 'Movimentações de uma modalidade';
+      case TipoGatilho.passosValidados:
+        return 'Movimentações validadas pelo professor';
+      case TipoGatilho.frequenciaSemanas:
+        return 'Semanas seguidas aprendendo';
+      case TipoGatilho.especial:
+        return 'Especial (professor concede manualmente)';
+    }
+  }
+
+  String _valorLabel() {
+    switch (_gatilho) {
+      case TipoGatilho.nivelAtingido:
+        return 'Nível necessário';
+      case TipoGatilho.frequenciaSemanas:
+        return 'Número de semanas';
+      default:
+        return 'Quantidade necessária';
+    }
+  }
+
+  Widget _buildAviso(String texto) => Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border:
+              Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.info_outline_rounded,
+              color: Colors.orange, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(texto,
+                style: const TextStyle(
+                    color: Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500)),
+          ),
+        ]),
+      );
+
+  Widget _buildDropdown<T>({
+    required T? value,
+    required List<T> items,
+    required String Function(T) label,
+    required void Function(T?) onChanged,
+    String? hint,
+  }) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(14)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+            value: value,
+            hint: hint != null
+                ? Text(hint,
+                    style: TextStyle(
+                        color: Colors.grey[400], fontSize: 14))
+                : null,
+            isExpanded: true,
+            items: items
+                .map((i) => DropdownMenuItem(
+                    value: i,
+                    child: Text(label(i),
+                        style: const TextStyle(fontSize: 14))))
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ),
+      );
+
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -720,7 +951,7 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
   }
 
   Widget _buildInput(TextEditingController ctrl, String hint,
-      {int maxLines = 1}) {
+      {int maxLines = 1, TextInputType? keyboardType}) {
     return Container(
       decoration: BoxDecoration(
           color: AppTheme.surface,
@@ -728,6 +959,7 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
