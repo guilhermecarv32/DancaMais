@@ -9,16 +9,14 @@ import 'data/services/auth_service.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
-  // Garante a inicialização dos bindings do Flutter
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicializa o Firebase para persistência e autenticação na nuvem
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug, // Essencial para emuladores
+    androidProvider: AndroidProvider.debug,
   );
 
   runApp(const MyApp());
@@ -29,7 +27,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // MultiBlocProvider permite que o estado de autenticação seja acessado em todo o app
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -39,8 +36,14 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'DançaMais',
-        theme: AppTheme.themeData, 
-        home: const AuthWrapper(),
+        theme: AppTheme.themeData,
+        // Rota inicial nomeada — permite que RegisterScreen navegue de volta
+        // com pushNamedAndRemoveUntil('/'), limpando toda a pilha.
+        // O AuthWrapper decide automaticamente para onde ir (aluno ou professor).
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const AuthWrapper(),
+        },
       ),
     );
   }
