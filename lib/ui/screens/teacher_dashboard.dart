@@ -46,7 +46,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
     // Escuta Firestore separadamente — não interfere no scroll
     FirebaseFirestore.instance
         .collection('turmas')
-        .where('professorId', isEqualTo: widget.professorId)
+        
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
@@ -642,7 +642,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('turmas')
-              .where('professorId', isEqualTo: uid)
+              
               .limit(5) // Mostra no máximo 5 no dashboard
               .snapshots(),
           builder: (context, snap) {

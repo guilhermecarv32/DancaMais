@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dancamais/core/app_theme_notifier.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,7 +20,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   final _novaSenhaCtrl = TextEditingController();
   final _confirmaSenhaCtrl = TextEditingController();
 
-  // Modalidades selecionadas pelo professor (multi-select)
   List<String> _modalidadesSelecionadas = [];
   List<String> _modalidadesOriginais = [];
   String _nomeOriginal = '';
@@ -32,6 +32,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   bool _obscureNovaSenha = true;
   bool _obscureConfirma = true;
   bool _dadosCarregados = false;
+  bool _modoEscuro = false;
 
   @override
   void dispose() {
@@ -76,14 +77,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     setState(() => _salvandoDados = true);
 
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    // Dados pessoais salvam no perfil do professor (usuarios/{uid})
+    // As modalidades aqui são as que ELE leciona, não as da escola
     await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(uid)
         .update({
       'nome': nome,
-      // Salva como lista (suporte a múltiplas modalidades)
       'modalidades': _modalidadesSelecionadas,
-      // Mantém campo legado 'modalidade' com a primeira selecionada
       'modalidade': _modalidadesSelecionadas.isNotEmpty
           ? _modalidadesSelecionadas.join(', ')
           : '',
@@ -199,6 +200,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             if (!_dadosCarregados) {
               _nomeCtrl.text = nome;
               _modalidadesSelecionadas = List.from(modalidadesSalvas);
+              _modoEscuro = userData['modoEscuro'] == true;
               _dadosCarregados = true;
             }
 
@@ -308,6 +310,52 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   _buildPainelAdmin(),
                 ],
 
+                // ── Configurações ──────────────────────────────
+                const SizedBox(height: 28),
+                _buildSectionHeader('Configurações', dark,
+                    trailing: const SizedBox.shrink()),
+                const SizedBox(height: 14),
+                _buildCard(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: Row(children: [
+                      Icon(Icons.dark_mode_rounded,
+                          size: 18, color: Colors.grey[400]),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Modo escuro',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: AppTheme.secondary)),
+                            Text('Altera o tema do aplicativo',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _modoEscuro,
+                        activeColor: AppTheme.primary,
+                        onChanged: (val) async {
+                          setState(() => _modoEscuro = val);
+                          // Salva preferência no Firestore
+                          await FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc(uid)
+                              .update({'modoEscuro': val});
+                          // Notifica o app para trocar o tema
+                          AppThemeNotifier.of(context)?.setDarkMode(val);
+                        },
+                      ),
+                    ]),
+                  ),
+                ]),
+
                 const SizedBox(height: 40),
                 _buildBotaoLogout(context),
               ],
@@ -323,8 +371,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Widget _buildCampoModalidades(String uid) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('configuracoes')
-          .doc(uid)
+          .collection('escola')
+          .doc('config')
           .snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data() as Map<String, dynamic>?;
@@ -503,8 +551,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Text(
                     'Todos os professores foram aprovados.',
-                    style: TextStyle(
-                        color: Colors.grey[400], fontSize: 13),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
                   ),
                 ),
 
@@ -513,68 +560,114 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 final nome = data['nome'] ?? 'Sem nome';
                 final email = data['email'] ?? '';
 
+                // Modalidades podem ser lista ou string legada
+                final raw = data['modalidades'];
+                final modalidades = raw is List
+                    ? List<String>.from(raw)
+                    : data['modalidade'] is String &&
+                            (data['modalidade'] as String).isNotEmpty
+                        ? (data['modalidade'] as String).split(', ')
+                        : <String>[];
+
                 return Column(children: [
                   _buildDivider(),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: Row(children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor:
-                            AppTheme.primary.withOpacity(0.1),
-                        child: Text(
-                          nome[0].toUpperCase(),
-                          style: const TextStyle(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(nome,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14)),
-                            Text(email,
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      // Rejeitar
-                      GestureDetector(
-                        onTap: () => _responderSolicitacao(
-                            doc.id, false, nome),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
+                        horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Linha principal: avatar + nome + botões
+                        Row(children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor:
+                                AppTheme.primary.withOpacity(0.1),
+                            child: Text(
+                              nome[0].toUpperCase(),
+                              style: const TextStyle(
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          child: const Icon(Icons.close_rounded,
-                              color: Colors.red, size: 18),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Aprovar
-                      GestureDetector(
-                        onTap: () =>
-                            _responderSolicitacao(doc.id, true, nome),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(nome,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14)),
+                                Text(email,
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 12)),
+                              ],
+                            ),
                           ),
-                          child: const Icon(Icons.check_rounded,
-                              color: Colors.green, size: 18),
-                        ),
-                      ),
-                    ]),
+                          // Rejeitar — volta status para 'naoSolicitado'
+                          // para o professor poder tentar de novo
+                          GestureDetector(
+                            onTap: () => _responderSolicitacao(
+                                doc.id, false, nome),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.close_rounded,
+                                  color: Colors.red, size: 18),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Aprovar
+                          GestureDetector(
+                            onTap: () =>
+                                _responderSolicitacao(doc.id, true, nome),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.check_rounded,
+                                  color: Colors.green, size: 18),
+                            ),
+                          ),
+                        ]),
+
+                        // Modalidades solicitadas
+                        if (modalidades.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: modalidades
+                                .map((m) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary
+                                            .withOpacity(0.08),
+                                        borderRadius:
+                                            BorderRadius.circular(20),
+                                        border: Border.all(
+                                            color: AppTheme.primary
+                                                .withOpacity(0.2)),
+                                      ),
+                                      child: Text(m,
+                                          style: const TextStyle(
+                                              color: AppTheme.primary,
+                                              fontSize: 12,
+                                              fontWeight:
+                                                  FontWeight.w600)),
+                                    ))
+                                .toList(),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ]);
               }),
@@ -586,15 +679,17 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   }
 
   Future<void> _responderSolicitacao(
-      String uid, bool aprovar, String nome) async {
+      String professorUid, bool aprovar, String nome) async {
     await FirebaseFirestore.instance
         .collection('usuarios')
-        .doc(uid)
-        .update({'status': aprovar ? 'ativo' : 'rejeitado'});
+        .doc(professorUid)
+        .update({
+      'status': aprovar ? 'ativo' : 'rejeitado',
+    });
 
     _mostrarSucesso(aprovar
         ? '$nome aprovado com sucesso!'
-        : 'Cadastro de $nome rejeitado.');
+        : 'Solicitação de $nome recusada.');
   }
 
   // ── Componentes de UI ─────────────────────────────────────────

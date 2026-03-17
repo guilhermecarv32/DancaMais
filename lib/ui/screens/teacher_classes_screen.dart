@@ -165,7 +165,7 @@ class _TurmasTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('turmas')
-          .where('professorId', isEqualTo: uid)
+          
           .snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -201,153 +201,248 @@ class _TurmaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Linha principal ──────────────────────────────────
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
+      onTap: () => _abrirAlunos(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.groups_rounded, color: AppTheme.primary),
                 ),
-                child: const Icon(Icons.groups_rounded,
-                    color: AppTheme.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(turma.nome,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppTheme.secondary)),
+                      const SizedBox(height: 3),
+                      Row(children: [
+                        _Tag(turma.modalidade, Colors.grey),
+                        const SizedBox(width: 6),
+                        _Tag(turma.nivel, AppTheme.primary),
+                      ]),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(turma.nome,
+                    Text('${turma.totalAlunos}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: AppTheme.secondary)),
-                    const SizedBox(height: 3),
-                    Row(children: [
-                      _Tag(turma.modalidade, Colors.grey),
-                      const SizedBox(width: 6),
-                      _Tag(turma.nivel, AppTheme.primary),
-                    ]),
+                            fontSize: 18,
+                            color: AppTheme.primary)),
+                    const Text('alunos',
+                        style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () => _mostrarMenu(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.more_vert_rounded,
+                            size: 18, color: Colors.grey),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('${turma.totalAlunos}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppTheme.primary)),
-                  const Text('alunos',
-                      style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: () => _confirmarExcluir(context, turma),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        color: Colors.redAccent, size: 18),
+              ],
+            ),
+
+            if (turma.horariosDia.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF0F0F0)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8, runSpacing: 6,
+                children: turma.horariosDia.map((h) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(h.dia, style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: AppTheme.secondary)),
+                    const SizedBox(width: 6),
+                    Text(h.horario, style: const TextStyle(
+                        fontSize: 12, color: Colors.grey)),
+                  ]),
+                )).toList(),
               ),
             ],
-          ),
 
-          // ── Horários por dia ─────────────────────────────────
-          if (turma.horariosDia.isNotEmpty) ...[
             const SizedBox(height: 12),
             const Divider(height: 1, color: Color(0xFFF0F0F0)),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: turma.horariosDia.map((h) => Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(10),
+            Row(
+              children: [
+                const Icon(Icons.star_rounded, size: 14, color: AppTheme.primary),
+                const SizedBox(width: 6),
+                const Text('Passo da semana:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    turma.passoSemanaNome ?? 'Não definido',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: turma.passoSemanaNome != null
+                            ? AppTheme.secondary
+                            : Colors.grey[400]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(h.dia,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: AppTheme.secondary)),
-                    const SizedBox(width: 6),
-                    Text(h.horario,
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey)),
-                  ],
+                // Botão desmarcar (só aparece se tiver passo definido)
+                if (turma.passoSemanaNome != null)
+                  GestureDetector(
+                    onTap: () => _desmarcarPasso(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          size: 13, color: Colors.grey),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => _abrirSeletorPasso(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      turma.passoSemanaNome != null ? 'Trocar' : 'Definir',
+                      style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              )).toList(),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
 
-          // ── Passo da semana ──────────────────────────────────
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.star_rounded,
-                  size: 14, color: AppTheme.primary),
-              const SizedBox(width: 6),
-              const Text('Passo da semana:',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  turma.passoSemanaNome ?? 'Não definido',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: turma.passoSemanaNome != null
-                          ? AppTheme.secondary
-                          : Colors.grey[400]),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _abrirSeletorPasso(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
+  void _abrirAlunos(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AlunosTurmaSheet(turma: turma),
+    );
+  }
+
+  void _mostrarMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(turma.nome,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppTheme.secondary)),
+            Text('${turma.modalidade} · ${turma.nivel}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
                     color: AppTheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    turma.passoSemanaNome != null ? 'Trocar' : 'Definir',
-                    style: const TextStyle(
-                        color: AppTheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.edit_rounded,
+                    color: AppTheme.primary, size: 20),
               ),
-            ],
-          ),
-        ],
+              title: const Text('Editar',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              subtitle: const Text('Alterar nome, modalidade, nível e horários',
+                  style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _EditarTurmaSheet(turma: turma),
+                );
+              },
+            ),
+            const Divider(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.delete_outline_rounded,
+                    color: Colors.redAccent, size: 20),
+              ),
+              title: const Text('Excluir',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Colors.redAccent)),
+              subtitle: const Text('Remove a turma permanentemente',
+                  style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarExcluir(context, turma);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -361,20 +456,24 @@ class _TurmaCard extends StatelessWidget {
     );
   }
 
+  Future<void> _desmarcarPasso() async {
+    await FirebaseFirestore.instance
+        .collection('turmas')
+        .doc(turma.id)
+        .update({'passoSemanaId': null, 'passoSemanaNome': null});
+  }
+
   void _confirmarExcluir(BuildContext context, TurmaModel turma) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Excluir turma?'),
-        content: Text(
-            'A turma "${turma.nome}" será removida permanentemente.'),
+        content: Text('A turma "${turma.nome}" será removida permanentemente.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
           TextButton(
             onPressed: () async {
               await FirebaseFirestore.instance
@@ -387,6 +486,407 @@ class _TurmaCard extends StatelessWidget {
                 style: TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Sheet: Alunos da Turma ────────────────────────────────────────
+
+class _AlunosTurmaSheet extends StatelessWidget {
+  final TurmaModel turma;
+  const _AlunosTurmaSheet({required this.turma});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 25, 25, 30),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          Text(turma.nome,
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.secondary)),
+          Text('${turma.modalidade} · ${turma.nivel}',
+              style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 16),
+
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('inscricoes')
+                .where('turmaId', isEqualTo: turma.id)
+                .snapshots(),
+            builder: (context, inscSnap) {
+              final alunoIds = inscSnap.data?.docs
+                      .map((d) =>
+                          (d.data() as Map<String, dynamic>)['alunoId']
+                              as String)
+                      .toList() ??
+                  [];
+
+              if (alunoIds.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 30),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Text('👥', style: TextStyle(fontSize: 40)),
+                        SizedBox(height: 8),
+                        Text('Nenhum aluno nesta turma.',
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .where(FieldPath.documentId, whereIn: alunoIds)
+                    .snapshots(),
+                builder: (context, alunosSnap) {
+                  final alunos = alunosSnap.data?.docs ?? [];
+
+                  return SizedBox(
+                    height: 320,
+                    child: ListView.builder(
+                      itemCount: alunos.length,
+                      itemBuilder: (_, i) {
+                        final data =
+                            alunos[i].data() as Map<String, dynamic>;
+                        final nome = data['nome'] ?? 'Aluno';
+                        final nivel = data['nivel'] ?? 1;
+                        final xp = data['xp'] ?? 0;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor:
+                                  AppTheme.primary.withOpacity(0.12),
+                              child: Text(
+                                nome[0].toUpperCase(),
+                                style: const TextStyle(
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(nome,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: AppTheme.secondary)),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('Nível $nivel',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: AppTheme.primary)),
+                                Text('$xp XP',
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 11)),
+                              ],
+                            ),
+                          ]),
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sheet: Editar Turma ───────────────────────────────────────────
+
+class _EditarTurmaSheet extends StatefulWidget {
+  final TurmaModel turma;
+  const _EditarTurmaSheet({required this.turma});
+
+  @override
+  State<_EditarTurmaSheet> createState() => _EditarTurmaSheetState();
+}
+
+class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
+  late TextEditingController _nomeCtrl;
+  String? _modalidade;
+  String? _nivel;
+  final Map<String, TextEditingController> _horarioControllers = {};
+  bool _salvando = false;
+
+  final _diasSemana = [
+    'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeCtrl = TextEditingController(text: widget.turma.nome);
+    _modalidade = widget.turma.modalidade;
+    _nivel = widget.turma.nivel;
+    // Pré-preenche os horários existentes
+    for (final h in widget.turma.horariosDia) {
+      _horarioControllers[h.dia] = TextEditingController(text: h.horario);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nomeCtrl.dispose();
+    for (final c in _horarioControllers.values) c.dispose();
+    super.dispose();
+  }
+
+  void _toggleDia(String dia) {
+    setState(() {
+      if (_horarioControllers.containsKey(dia)) {
+        _horarioControllers[dia]!.dispose();
+        _horarioControllers.remove(dia);
+      } else {
+        _horarioControllers[dia] = TextEditingController();
+      }
+    });
+  }
+
+  Future<void> _salvar() async {
+    if (_nomeCtrl.text.trim().isEmpty || _modalidade == null || _nivel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha nome, modalidade e nível.')),
+      );
+      return;
+    }
+
+    setState(() => _salvando = true);
+
+    final horariosDia = _horarioControllers.entries
+        .map((e) => HorarioDia(
+            dia: e.key,
+            horario: e.value.text.trim().isEmpty ? '—' : e.value.text.trim()))
+        .toList();
+
+    await FirebaseFirestore.instance
+        .collection('turmas')
+        .doc(widget.turma.id)
+        .update({
+      'nome': _nomeCtrl.text.trim(),
+      'modalidade': _modalidade,
+      'nivel': _nivel,
+      'horariosDia': horariosDia.map((h) => h.toMap()).toList(),
+    });
+
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Alca(),
+            const Text('Editar Turma',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.secondary)),
+            const SizedBox(height: 20),
+
+            _SheetLabel('Nome da turma'),
+            _SheetInput(_nomeCtrl, 'Ex: Turma Iniciante 1'),
+            const SizedBox(height: 14),
+
+            _SheetLabel('Modalidade'),
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('escola').doc('config').snapshots(),
+              builder: (context, snap) {
+                final data = snap.data?.data() as Map<String, dynamic>?;
+                final todas = List<String>.from(data?['modalidades'] ?? []);
+                if (todas.isEmpty) return _SheetAviso('Nenhuma modalidade cadastrada.');
+                return _SheetDropdown<String>(
+                  value: todas.contains(_modalidade) ? _modalidade : null,
+                  hint: 'Selecione a modalidade',
+                  items: todas, label: (m) => m,
+                  onChanged: (v) => setState(() => _modalidade = v),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+
+            _SheetLabel('Nível'),
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('escola').doc('config').snapshots(),
+              builder: (context, snap) {
+                final data = snap.data?.data() as Map<String, dynamic>?;
+                final todos = List<String>.from(data?['niveis'] ?? []);
+                if (todos.isEmpty) return _SheetAviso('Nenhum nível cadastrado.');
+                return _SheetDropdown<String>(
+                  value: todos.contains(_nivel) ? _nivel : null,
+                  hint: 'Selecione o nível',
+                  items: todos, label: (n) => n,
+                  onChanged: (v) => setState(() => _nivel = v),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+
+            _SheetLabel('Dias e horários'),
+            Column(
+              children: _diasSemana.map((dia) {
+                final selecionado = _horarioControllers.containsKey(dia);
+                return Column(children: [
+                  GestureDetector(
+                    onTap: () => _toggleDia(dia),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: selecionado
+                            ? AppTheme.primary.withOpacity(0.07)
+                            : AppTheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selecionado
+                              ? AppTheme.primary
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 20, height: 20,
+                          decoration: BoxDecoration(
+                            color: selecionado
+                                ? AppTheme.primary
+                                : Colors.grey.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: selecionado
+                              ? const Icon(Icons.check_rounded,
+                                  size: 13, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(dia,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: selecionado
+                                    ? AppTheme.primary
+                                    : Colors.grey[600])),
+                      ]),
+                    ),
+                  ),
+                  if (selecionado) ...[
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Row(children: [
+                        const Icon(Icons.access_time_rounded,
+                            size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: AppTheme.primary.withOpacity(0.2)),
+                            ),
+                            child: TextField(
+                              controller: _horarioControllers[dia],
+                              keyboardType: TextInputType.datetime,
+                              style: const TextStyle(
+                                  fontSize: 13, color: AppTheme.secondary),
+                              decoration: const InputDecoration(
+                                hintText: 'Ex: 18:00 - 19:00',
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ]);
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _salvando ? null : _salvar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: _salvando
+                    ? const SizedBox(height: 22, width: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Salvar',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -543,8 +1043,8 @@ class _ModalidadesTab extends StatelessWidget {
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('configuracoes')
-          .doc(uid)
+          .collection('escola')
+          .doc('config')
           .snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data() as Map<String, dynamic>?;
@@ -576,8 +1076,8 @@ class _ModalidadesTab extends StatelessWidget {
     final confirmar = await _confirmarRemocao(context, modalidade);
     if (!confirmar) return;
     await FirebaseFirestore.instance
-        .collection('configuracoes')
-        .doc(uid)
+        .collection('escola')
+        .doc('config')
         .update({
       'modalidades': FieldValue.arrayRemove([modalidade]),
     });
@@ -597,8 +1097,8 @@ class _NiveisTab extends StatelessWidget {
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('configuracoes')
-          .doc(uid)
+          .collection('escola')
+          .doc('config')
           .snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data() as Map<String, dynamic>?;
@@ -630,8 +1130,8 @@ class _NiveisTab extends StatelessWidget {
     final confirmar = await _confirmarRemocao(context, nivel);
     if (!confirmar) return;
     await FirebaseFirestore.instance
-        .collection('configuracoes')
-        .doc(uid)
+        .collection('escola')
+        .doc('config')
         .update({
       'niveis': FieldValue.arrayRemove([nivel]),
     });
@@ -882,8 +1382,8 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
             _SheetLabel('Modalidade'),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('configuracoes')
-                  .doc(uid)
+                  .collection('escola')
+                  .doc('config')
                   .snapshots(),
               builder: (context, snap) {
                 final data =
@@ -911,8 +1411,8 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
             _SheetLabel('Nível'),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('configuracoes')
-                  .doc(uid)
+                  .collection('escola')
+                  .doc('config')
                   .snapshots(),
               builder: (context, snap) {
                 final data =
@@ -1095,8 +1595,8 @@ class _NovaModalidadeSheetState extends State<_NovaModalidadeSheet> {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     await FirebaseFirestore.instance
-        .collection('configuracoes')
-        .doc(uid)
+        .collection('escola')
+        .doc('config')
         .set({
       'modalidades': FieldValue.arrayUnion([nome]),
     }, SetOptions(merge: true));
@@ -1160,8 +1660,8 @@ class _NovoNivelSheetState extends State<_NovoNivelSheet> {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     await FirebaseFirestore.instance
-        .collection('configuracoes')
-        .doc(uid)
+        .collection('escola')
+        .doc('config')
         .set({
       'niveis': FieldValue.arrayUnion([nome]),
     }, SetOptions(merge: true));

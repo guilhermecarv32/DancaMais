@@ -44,8 +44,8 @@ class _TeacherStepsLibraryScreenState
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
-              .collection('configuracoes')
-              .doc(uid)
+              .collection('escola')
+              .doc('config')
               .snapshots(),
           builder: (context, configSnap) {
             final data =
@@ -873,7 +873,7 @@ class _NovaMovimentacaoSheetState
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('turmas')
-                    .where('professorId', isEqualTo: uid)
+                    
                     .where('modalidade', isEqualTo: _modalidade)
                     .snapshots(),
                 builder: (context, snap) {

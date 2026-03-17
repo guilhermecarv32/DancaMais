@@ -9,62 +9,93 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AuthBloc(this.authService) : super(AuthInitial()) {
-    
-    // --- 1. MANIPULADOR DE LOGIN ---
+
+    // --- LOGIN ---
     on<LoginRequested>((event, emit) async {
       emit(AuthLoading());
       try {
-        // Tenta realizar o login via AuthService
-        final user = await authService.signInWithEmail(event.email, event.password);
-        
+        final user = await authService.signInWithEmail(
+            event.email, event.password);
+
         if (user != null) {
-          // Se o login for bem-sucedido, emite o estado Authenticated com o UID
+          final doc = await _firestore
+              .collection('usuarios')
+              .doc(user.uid)
+              .get();
+          final data = doc.data() as Map<String, dynamic>?;
+          final tipo = data?['tipo'] ?? 'aluno';
+          final status = data?['status'] ?? 'ativo';
+
+          if (tipo == 'professor' && status == 'pendente') {
+            // Mantém logado — AuthWrapper mostra tela de espera
+            emit(AuthPendingApproval(user.uid));
+            return;
+          }
+
+          if (tipo == 'professor' && status == 'rejeitado') {
+            await authService.signOut();
+            emit(AuthError(
+                'Seu cadastro foi recusado. Entre em contato com o administrador.'));
+            return;
+          }
+
           emit(Authenticated(user.uid));
         } else {
-          emit(AuthError("E-mail ou senha incorretos."));
+          emit(AuthError('E-mail ou senha incorretos.'));
         }
       } catch (e) {
         emit(AuthError(e.toString()));
       }
     });
 
-    // --- 2. MANIPULADOR DE CADASTRO ---
+    // --- CADASTRO ---
     on<RegisterRequested>((event, emit) async {
       emit(AuthLoading());
       try {
-        // 1. Cria o utilizador no Firebase Authentication
-        final user = await authService.registerWithEmail(event.email, event.password);
-        
+        final user = await authService.registerWithEmail(
+            event.email, event.password);
+
         if (user != null) {
-          // 2. Guarda os dados no Firestore conforme sua estrutura
+          final isProfessor = event.tipo == 'professor';
+
           await _firestore.collection('usuarios').doc(user.uid).set({
             'nome': event.nome,
             'email': event.email,
-            'tipo': event.tipo, // 'aluno' ou 'professor'
-            'dataCriacao': FieldValue.serverTimestamp(), // Carimbado em 3 de março de 2026
-            
-            // Atributos de gamificação iniciais para alunos
-            'nivel': event.tipo == 'aluno' ? 1 : null,
-            'xp': event.tipo == 'aluno' ? 0 : null,
-            'conquistas': event.tipo == 'aluno' ? [] : null,
+            'tipo': event.tipo,
+            'dataCriacao': FieldValue.serverTimestamp(),
+            'status': isProfessor ? 'pendente' : 'ativo',
+            // Modalidade selecionada pelo professor no cadastro
+            if (isProfessor && event.modalidade != null)
+              'modalidade': event.modalidade,
+            'modalidades': event.modalidades,
+            // Gamificação para alunos
+            'nivel': isProfessor ? null : 1,
+            'xp': isProfessor ? null : 0,
+            'conquistas': isProfessor ? null : [],
           });
-          
-          emit(Authenticated(user.uid));
+
+          if (isProfessor) {
+            // NÃO faz signOut — mantém logado para o AuthWrapper
+            // detectar o status pendente e mostrar a tela de espera
+            emit(AuthPendingApproval(user.uid));
+          } else {
+            emit(Authenticated(user.uid));
+          }
         } else {
-          emit(AuthError("Não foi possível criar a conta."));
+          emit(AuthError('Não foi possível criar a conta.'));
         }
       } catch (e) {
         emit(AuthError(e.toString()));
       }
     });
 
-    // --- 3. MANIPULADOR DE LOGOUT ---
+    // --- LOGOUT ---
     on<LogoutRequested>((event, emit) async {
       try {
         await authService.signOut();
-        emit(AuthInitial()); // Volta para o estado inicial para o AuthWrapper agir
+        emit(AuthInitial());
       } catch (e) {
-        emit(AuthError("Erro ao sair: ${e.toString()}"));
+        emit(AuthError('Erro ao sair: ${e.toString()}'));
       }
     });
   }
