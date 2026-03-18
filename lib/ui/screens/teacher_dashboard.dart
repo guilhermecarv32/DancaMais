@@ -322,6 +322,27 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       body: Stack(
         children: [
           screens[_selectedIndex],
+          // Fade atrás do dock — suaviza a transição do conteúdo para o menu
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: IgnorePointer(
+              child: Container(
+                height: 130,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0),
+                      Colors.white.withOpacity(0.85),
+                      Colors.white,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
           _buildFloatingDock(primaryColor),
         ],
       ),
@@ -338,13 +359,27 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Container(
           height: 75,
           decoration: BoxDecoration(
-            color: Colors.white,
+            // Fade na parte de trás do dock
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withOpacity(0.95),
+                Colors.white,
+              ],
+            ),
             borderRadius: BorderRadius.circular(35),
             boxShadow: [
               BoxShadow(
                   color: Colors.black.withOpacity(0.12),
                   blurRadius: 25,
-                  offset: const Offset(0, 10))
+                  offset: const Offset(0, 10)),
+              // Sombra difusa para efeito de fade nas bordas
+              BoxShadow(
+                  color: Colors.white.withOpacity(0.9),
+                  blurRadius: 20,
+                  spreadRadius: -5,
+                  offset: const Offset(0, -8)),
             ],
           ),
           child: Row(
@@ -352,25 +387,33 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             children: [
               _buildDockItem(0, Icons.groups_rounded),
               _buildDockItem(1, Icons.auto_stories_rounded),
+              // Botão Home com logo customizada
               GestureDetector(
                 onTap: () => setState(() => _selectedIndex = 2),
                 child: Container(
-                  height: 55,
-                  width: 55,
+                  // Hitbox ampliada
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: _selectedIndex == 2
                         ? primary.withOpacity(0.1)
                         : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    _selectedIndex == 2
-                        ? Icons.home_rounded
-                        : Icons.home_outlined,
-                    size: 32,
-                    color: _selectedIndex == 2
-                        ? primary
-                        : Colors.grey[400],
+                  child: Center(
+                    child: _selectedIndex == 2
+                        ? Image.asset(
+                            'assets/logo_color.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.asset(
+                            'assets/logodm_cinza_btn.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          ),
                   ),
                 ),
               ),
@@ -387,21 +430,28 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              size: 24,
-              color: isSelected ? AppTheme.primary : Colors.grey[300]),
-          if (isSelected)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              width: 4,
-              height: 4,
-              decoration: const BoxDecoration(
-                  color: AppTheme.primary, shape: BoxShape.circle),
-            ),
-        ],
+      // Hitbox ampliada — não precisa clicar exatamente no ícone
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 52,
+        height: 64,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 26,
+                color: isSelected ? AppTheme.primary : Colors.grey[400]),
+            if (isSelected) ...[
+              const SizedBox(height: 4),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                    color: AppTheme.primary, shape: BoxShape.circle),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -529,7 +579,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               () => setState(() => _selectedIndex = 3),
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(children: [
               _buildSmallBentoCard(
@@ -538,7 +588,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 primary,
                 () => setState(() => _selectedIndex = 1),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               _buildSmallBentoCard(
                 'Nova Turma',
                 Icons.add_home_work_rounded,
@@ -551,36 +601,41 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       );
 
   Widget _buildBigBentoCard(
-      String title, IconData icon, Color color, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 140,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: color.withOpacity(0.12)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CircleAvatar(
-                  backgroundColor: color,
-                  radius: 22,
-                  child:
-                      Icon(icon, color: Colors.white, size: 26)),
-              Text(title,
-                  style: TextStyle(
-                      color: color.withOpacity(0.9),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 17,
-                      height: 1.1)),
-            ],
-          ),
+      String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 140,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6)),
+          ],
         ),
-      );
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            CircleAvatar(
+                backgroundColor: color,
+                radius: 22,
+                child: Icon(icon, color: Colors.white, size: 24)),
+            Text(title,
+                style: const TextStyle(
+                    color: AppTheme.secondary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    height: 1.1)),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSmallBentoCard(
       String title, IconData icon, Color color, VoidCallback onTap) =>
@@ -591,11 +646,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10)
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6)),
             ],
           ),
           child: Row(children: [
@@ -708,7 +764,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
     return Container(
       width: 210,
-      margin: const EdgeInsets.only(right: 15),
+      margin: const EdgeInsets.only(right: 15, top: 6, bottom: 4),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -749,27 +805,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 fontWeight: FontWeight.bold),
           ),
           const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: ElevatedButton(
-              onPressed: () => setState(() => _selectedIndex = 0),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: temPasso ? primary : Colors.white,
-                foregroundColor: temPasso ? Colors.white : primary,
-                elevation: 0,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: primary, width: 1.5)),
-              ),
-              child: Text(
-                temPasso ? turma.passoSemanaNome! : 'Definir passo',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 12),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+          _PassoSemanaButton(
+            turma: turma,
+            primary: primary,
+            onTap: () => setState(() => _selectedIndex = 0),
           ),
         ],
       ),
@@ -783,4 +822,83 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             fontWeight: FontWeight.bold,
             color: dark.withOpacity(0.8)),
       );
+}
+
+// ── Botão animado do passo da semana ──────────────────────────────
+
+class _PassoSemanaButton extends StatefulWidget {
+  final TurmaModel turma;
+  final Color primary;
+  final VoidCallback onTap;
+
+  const _PassoSemanaButton({
+    required this.turma,
+    required this.primary,
+    required this.onTap,
+  });
+
+  @override
+  State<_PassoSemanaButton> createState() => _PassoSemanaButtonState();
+}
+
+class _PassoSemanaButtonState extends State<_PassoSemanaButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.0,
+      upperBound: 0.06,
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final temPasso = widget.turma.passoSemanaNome != null;
+
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Container(
+          width: double.infinity,
+          height: 40,
+          decoration: BoxDecoration(
+            color: temPasso ? widget.primary : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: widget.primary, width: 1.5),
+          ),
+          child: Center(
+            child: Text(
+              temPasso ? widget.turma.passoSemanaNome! : 'Definir passo',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: temPasso ? Colors.white : widget.primary),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
