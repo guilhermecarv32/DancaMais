@@ -300,7 +300,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final Color primaryColor = AppTheme.primary;
-    const Color darkColor = AppTheme.secondary;
+    final Color darkColor = AppTheme.secondary;
 
     final screens = [
       const TeacherClassesScreen(),
@@ -355,7 +355,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(35),
             border: Border.all(
-              color: AppTheme.primary.withOpacity(0.25),
+              color: AppTheme.primary.withOpacity(0.35),
               width: 1.2,
             ),
             boxShadow: [
@@ -705,8 +705,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(left: 25, right: 10),
                 itemCount: turmas.length,
-                itemBuilder: (_, i) =>
-                    _buildTurmaCard(turmas[i], primary, dark),
+                itemBuilder: (ctx, i) =>
+                    _buildTurmaCard(ctx, turmas[i], primary, dark),
               ),
             );
           },
@@ -715,7 +715,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTurmaCard(TurmaModel turma, Color primary, Color dark) {
+  Widget _buildTurmaCard(BuildContext context, TurmaModel turma, Color primary, Color dark) {
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = 0),
       behavior: HitTestBehavior.translucent,
@@ -759,7 +759,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             _PassoSemanaButton(
               turma: turma,
               primary: primary,
-              onTap: () => setState(() => _selectedIndex = 0),
+              onTap: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => SeletorPassoSemanaSheet(turma: turma),
+              ),
             ),
           ],
         ),
