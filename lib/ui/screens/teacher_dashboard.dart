@@ -355,7 +355,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(35),
             border: Border.all(
-              color: AppTheme.primary.withOpacity(0.15),
+              color: AppTheme.primary.withOpacity(0.25),
               width: 1.2,
             ),
             boxShadow: [
@@ -374,10 +374,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             children: [
               _buildDockItem(0, Icons.groups_rounded,
                   activeColor: Colors.blue[600]!,
-                  inactiveColor: Colors.blue[200]!),
+                  inactiveColor: Colors.grey[400]!),
               _buildDockItem(1, Icons.auto_stories_rounded,
                   activeColor: Colors.green[600]!,
-                  inactiveColor: Colors.green[200]!),
+                  inactiveColor: Colors.grey[400]!),
               // Botão Home com logo
               GestureDetector(
                 onTap: () => setState(() => _selectedIndex = 2),
@@ -401,10 +401,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ),
               _buildDockItem(3, Icons.workspace_premium_rounded,
                   activeColor: Colors.amber[700]!,
-                  inactiveColor: Colors.amber[300]!),
+                  inactiveColor: Colors.grey[400]!),
               _buildDockItem(4, Icons.person_rounded,
                   activeColor: Colors.purple[600]!,
-                  inactiveColor: Colors.purple[200]!),
+                  inactiveColor: Colors.grey[400]!),
             ],
           ),
         ),
