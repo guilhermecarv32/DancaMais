@@ -328,8 +328,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.white.withOpacity(0),
-                        Colors.white.withOpacity(0.85),
-                        Colors.white,
+                        const Color(0xFFF5F5F5).withOpacity(0.85),
+                        const Color(0xFFF5F5F5),
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ),
@@ -352,32 +352,33 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Container(
           height: 75,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.white.withOpacity(0.95),
-                Colors.white,
-              ],
-            ),
+            color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(35),
+            border: Border.all(
+              color: AppTheme.primary.withOpacity(0.15),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 25,
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 30,
                   offset: const Offset(0, 10)),
               BoxShadow(
-                  color: Colors.white.withOpacity(0.9),
-                  blurRadius: 20,
-                  spreadRadius: -5,
-                  offset: const Offset(0, -8)),
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildDockItem(0, Icons.groups_rounded),
-              _buildDockItem(1, Icons.auto_stories_rounded),
+              _buildDockItem(0, Icons.groups_rounded,
+                  activeColor: Colors.blue[600]!,
+                  inactiveColor: Colors.blue[200]!),
+              _buildDockItem(1, Icons.auto_stories_rounded,
+                  activeColor: Colors.green[600]!,
+                  inactiveColor: Colors.green[200]!),
+              // Botão Home com logo
               GestureDetector(
                 onTap: () => setState(() => _selectedIndex = 2),
                 child: Container(
@@ -398,8 +399,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                 ),
               ),
-              _buildDockItem(3, Icons.workspace_premium_rounded),
-              _buildDockItem(4, Icons.person_rounded),
+              _buildDockItem(3, Icons.workspace_premium_rounded,
+                  activeColor: Colors.amber[700]!,
+                  inactiveColor: Colors.amber[300]!),
+              _buildDockItem(4, Icons.person_rounded,
+                  activeColor: Colors.purple[600]!,
+                  inactiveColor: Colors.purple[200]!),
             ],
           ),
         ),
@@ -407,7 +412,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildDockItem(int index, IconData icon) {
+  Widget _buildDockItem(int index, IconData icon, {
+    required Color activeColor,
+    required Color inactiveColor,
+  }) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
@@ -420,14 +428,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           children: [
             Icon(icon,
                 size: 26,
-                color: isSelected ? AppTheme.primary : Colors.grey[400]),
+                color: isSelected ? activeColor : inactiveColor),
             if (isSelected) ...[
               const SizedBox(height: 4),
               Container(
                 width: 4,
                 height: 4,
-                decoration: const BoxDecoration(
-                    color: AppTheme.primary, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: activeColor, shape: BoxShape.circle),
               ),
             ],
           ],
