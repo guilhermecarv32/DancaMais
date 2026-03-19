@@ -229,83 +229,71 @@ class _TeacherStepsLibraryScreenState
   }
 
   Widget _buildMovCard(MovimentacaoModel mov) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04), blurRadius: 10)
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
+      onTap: () => _mostrarMenuOpcoes(mov),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04), blurRadius: 10)
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                mov.isPasso
+                    ? Icons.directions_walk_rounded
+                    : Icons.queue_music_rounded,
+                color: AppTheme.primary,
+              ),
             ),
-            child: Icon(
-              mov.isPasso
-                  ? Icons.directions_walk_rounded
-                  : Icons.queue_music_rounded,
-              color: AppTheme.primary,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(mov.nome,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppTheme.secondary)),
+                  const SizedBox(height: 3),
+                  _Tag(mov.modalidade, Colors.grey),
+                  if (mov.descricao.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(mov.descricao,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.grey, fontSize: 12)),
+                  ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
               children: [
-                Text(mov.nome,
+                Text('${mov.totalAprenderam}',
                     style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: AppTheme.secondary)),
-                const SizedBox(height: 3),
-                _Tag(mov.modalidade, Colors.grey),
-                if (mov.descricao.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(mov.descricao,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Colors.grey, fontSize: 12)),
-                ],
+                        fontSize: 16,
+                        color: AppTheme.primary)),
+                const Text('alunos',
+                    style: TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              Text('${mov.totalAprenderam}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppTheme.primary)),
-              const Text('alunos',
-                  style: TextStyle(fontSize: 10, color: Colors.grey)),
-              const SizedBox(height: 6),
-              // Menu de opções
-              GestureDetector(
-                onTap: () => _mostrarMenuOpcoes(mov),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.more_vert_rounded,
-                      size: 18, color: Colors.grey),
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

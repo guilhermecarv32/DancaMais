@@ -113,127 +113,69 @@ class TeacherBadgesScreen extends StatelessWidget {
 
   Widget _buildConquistaCard(
       BuildContext context, ConquistaModel conquista) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04), blurRadius: 10)
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(conquista.icone,
-                  style: const TextStyle(fontSize: 26)),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Expanded(
-                    child: Text(conquista.nome,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: AppTheme.secondary)),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: conquista.isAutomatica
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      conquista.isAutomatica ? '⚡ Auto' : '👋 Manual',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: conquista.isAutomatica
-                              ? Colors.green
-                              : Colors.orange),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 3),
-                Text(conquista.descricao,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                const SizedBox(height: 4),
-                if (conquista.criterio != null) ...[
-                  Text(conquista.criterio!.descricaoLegivel,
-                      style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                ],
-                Row(children: [
-                  const Icon(Icons.bolt_rounded,
-                      size: 14, color: AppTheme.primary),
-                  Text('+${conquista.xpRecompensa} XP',
-                      style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                ]),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              // Conceder (só para manuais)
-              if (conquista.isEspecial)
-                GestureDetector(
-                  onTap: () => _abrirBottomSheetConceder(context, conquista),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text('Conceder',
-                        style: TextStyle(
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11)),
-                  ),
-                ),
-              if (conquista.isEspecial) const SizedBox(height: 6),
-              // Menu ···
-              GestureDetector(
-                onTap: () => _mostrarMenuConquista(context, conquista),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.more_vert_rounded,
-                      size: 16, color: Colors.grey),
-                ),
+    return GestureDetector(
+      onTap: () => _mostrarMenuConquista(context, conquista),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04), blurRadius: 10)
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.08),
+                shape: BoxShape.circle,
               ),
-            ],
-          ),
-        ],
+              child: Center(
+                child: Text(conquista.icone,
+                    style: const TextStyle(fontSize: 26)),
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(conquista.nome,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppTheme.secondary)),
+                  const SizedBox(height: 3),
+                  Text(conquista.descricao,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  if (conquista.criterio != null) ...[
+                    Text(conquista.criterio!.descricaoLegivel,
+                        style: const TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                  ],
+                  Row(children: [
+                    const Icon(Icons.bolt_rounded,
+                        size: 14, color: AppTheme.primary),
+                    Text('+${conquista.xpRecompensa} XP',
+                        style: const TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -253,9 +195,17 @@ class TeacherBadgesScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
             Row(children: [
-              Text(conquista.icone,
-                  style: const TextStyle(fontSize: 22)),
+              Text(conquista.icone, style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(conquista.nome,
@@ -266,6 +216,29 @@ class TeacherBadgesScreen extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: 16),
+
+            // Conceder (só para manuais/especiais)
+            if (conquista.isEspecial) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.card_giftcard_rounded,
+                      color: Colors.green, size: 20),
+                ),
+                title: const Text('Conceder a aluno',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _abrirBottomSheetConceder(context, conquista);
+                },
+              ),
+              const Divider(height: 8),
+            ],
+
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Container(
@@ -277,16 +250,14 @@ class TeacherBadgesScreen extends StatelessWidget {
                     color: AppTheme.primary, size: 20),
               ),
               title: const Text('Editar',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 15)),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
               onTap: () {
                 Navigator.pop(context);
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) =>
-                      _EditarConquistaSheet(conquista: conquista),
+                  builder: (_) => _EditarConquistaSheet(conquista: conquista),
                 );
               },
             ),
@@ -719,10 +690,9 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
   }
 
   Future<void> _salvar() async {
-    if (_nomeCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) {
+    if (_nomeCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Preencha nome e descrição da conquista.')),
+        const SnackBar(content: Text('Preencha o nome da conquista.')),
       );
       return;
     }
@@ -754,15 +724,16 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
                 : null,
           );
 
+    // Descrição: usa o que o professor digitou ou gera pelo critério
+    final descricao = _descCtrl.text.trim().isNotEmpty
+        ? _descCtrl.text.trim()
+        : criterio?.descricaoLegivel ?? '';
+
     final conquista = ConquistaModel(
       id: ref.id,
       nome: _nomeCtrl.text.trim(),
-      descricao: _descCtrl.text.trim().isNotEmpty
-          ? _descCtrl.text.trim()
-          : criterio?.descricaoLegivel ?? '',
-      icone: _iconeCtrl.text.trim().isEmpty
-          ? '🏅'
-          : _iconeCtrl.text.trim(),
+      descricao: descricao,
+      icone: _iconeCtrl.text.trim().isEmpty ? '🏅' : _iconeCtrl.text.trim(),
       xpRecompensa: _xp,
       criterio: criterio,
       professorId: uid,
@@ -775,7 +746,6 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Container(
       padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
@@ -875,35 +845,39 @@ class _NovaConquistaSheetState extends State<_NovaConquistaSheet> {
 
             // Preview do critério
             if (_gatilho != TipoGatilho.especial) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppTheme.primary.withOpacity(0.2)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.auto_awesome_rounded,
-                      color: AppTheme.primary, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Disparada automaticamente quando: '
-                      '${CriterioConquista(
-                        gatilho: _gatilho,
-                        valor: int.tryParse(_valorCtrl.text) ?? 1,
-                        modalidade: _modalidadeCriterio,
-                      ).descricaoLegivel}',
-                      style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
+              Builder(builder: (_) {
+                final valor = int.tryParse(_valorCtrl.text) ?? 1;
+                final criterioPreview = CriterioConquista(
+                  gatilho: _gatilho,
+                  valor: valor,
+                  modalidade: _modalidadeCriterio,
+                );
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppTheme.primary.withOpacity(0.2)),
                   ),
-                ]),
-              ),
+                  child: Row(children: [
+                    const Icon(Icons.auto_awesome_rounded,
+                        color: AppTheme.primary, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Disparada automaticamente quando: '
+                        '${criterioPreview.descricaoLegivel}',
+                        style: const TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ]),
+                );
+              }),
               const SizedBox(height: 14),
             ],
 
