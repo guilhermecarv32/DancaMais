@@ -44,16 +44,24 @@ class CriterioConquista {
   String get descricaoLegivel {
     switch (gatilho) {
       case TipoGatilho.passosAprendidos:
-        return 'Aprender $valor movimentação${valor > 1 ? 's' : ''}';
+        return valor == 1
+            ? 'Aprender 1 movimentação'
+            : 'Aprender $valor movimentações';
       case TipoGatilho.nivelAtingido:
         return 'Atingir o nível $valor';
       case TipoGatilho.passosModalidade:
-        return 'Aprender $valor movimentação${valor > 1 ? 's' : ''}'
-            '${modalidade != null ? ' de $modalidade' : ''}';
+        final mod = modalidade != null ? ' de $modalidade' : '';
+        return valor == 1
+            ? 'Aprender 1 movimentação$mod'
+            : 'Aprender $valor movimentações$mod';
       case TipoGatilho.passosValidados:
-        return 'Ter $valor movimentação${valor > 1 ? 's' : ''} validada${valor > 1 ? 's' : ''} pelo professor';
+        return valor == 1
+            ? 'Ter 1 movimentação validada pelo professor'
+            : 'Ter $valor movimentações validadas pelo professor';
       case TipoGatilho.frequenciaSemanas:
-        return 'Aprender por $valor semana${valor > 1 ? 's' : ''} seguidas';
+        return valor == 1
+            ? 'Aprender por 1 semana seguida'
+            : 'Aprender por $valor semanas seguidas';
       case TipoGatilho.especial:
         return 'Concedida pelo professor';
     }
