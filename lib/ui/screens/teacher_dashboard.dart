@@ -43,10 +43,8 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Escuta Firestore separadamente — não interfere no scroll
     FirebaseFirestore.instance
         .collection('turmas')
-        
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
@@ -57,7 +55,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
   }
 
   void _onScroll() {
-    if (mounted) setState(() {}); // só atualiza posição dos cards
+    if (mounted) setState(() {});
   }
 
   @override
@@ -129,7 +127,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
     final visibleHeight = _heroHeight + (_peekOffset * 2) + 32;
 
     return NotificationListener<ScrollNotification>(
-      onNotification: (_) => true, // impede propagação para ListView pai
+      onNotification: (_) => true,
       child: SizedBox(
         height: visibleHeight,
         child: SingleChildScrollView(
@@ -176,8 +174,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
 
   Widget _buildHeroCard(_AulaHoje aula) => Container(
         height: _heroHeight,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
         decoration: BoxDecoration(
           color: widget.primary,
           borderRadius: BorderRadius.circular(28),
@@ -215,8 +212,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 15, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
               decoration: BoxDecoration(
                   color: Colors.white24,
                   borderRadius: BorderRadius.circular(14)),
@@ -232,8 +228,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
 
   Widget _buildSubCard(_AulaHoje aula, double depth) => Container(
         height: _subHeight,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -260,8 +255,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
                         fontWeight: FontWeight.bold, fontSize: 13),
                     overflow: TextOverflow.ellipsis),
                 Text(aula.turma.nivel,
-                    style: const TextStyle(
-                        color: Colors.grey, fontSize: 11)),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11)),
               ],
             ),
           ),
@@ -269,7 +263,6 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
       );
 }
 
-/// Dado auxiliar para a agenda do dia.
 class _AulaHoje {
   final TurmaModel turma;
   final String horario;
@@ -319,37 +312,37 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Stack(
-        children: [
-          screens[_selectedIndex],
-          // Fade atrás do dock — suaviza a transição do conteúdo para o menu
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: IgnorePointer(
-              child: Container(
-                height: 130,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withOpacity(0),
-                      Colors.white.withOpacity(0.85),
-                      Colors.white,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
+      body: SafeArea(
+        bottom: true,
+        child: Stack(
+          children: [
+            screens[_selectedIndex],
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: IgnorePointer(
+                child: Container(
+                  height: 130,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withOpacity(0),
+                        Colors.white.withOpacity(0.85),
+                        Colors.white,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          _buildFloatingDock(primaryColor),
-        ],
+            _buildFloatingDock(primaryColor),
+          ],
+        ),
       ),
     );
   }
-
-  // ── Dock flutuante ────────────────────────────────────────────
 
   Widget _buildFloatingDock(Color primary) {
     return Align(
@@ -359,7 +352,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         child: Container(
           height: 75,
           decoration: BoxDecoration(
-            // Fade na parte de trás do dock
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -374,7 +366,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   color: Colors.black.withOpacity(0.12),
                   blurRadius: 25,
                   offset: const Offset(0, 10)),
-              // Sombra difusa para efeito de fade nas bordas
               BoxShadow(
                   color: Colors.white.withOpacity(0.9),
                   blurRadius: 20,
@@ -387,11 +378,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             children: [
               _buildDockItem(0, Icons.groups_rounded),
               _buildDockItem(1, Icons.auto_stories_rounded),
-              // Botão Home com logo customizada
               GestureDetector(
                 onTap: () => setState(() => _selectedIndex = 2),
                 child: Container(
-                  // Hitbox ampliada
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
@@ -402,18 +391,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   ),
                   child: Center(
                     child: _selectedIndex == 2
-                        ? Image.asset(
-                            'assets/logo_color.png',
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.contain,
-                          )
-                        : Image.asset(
-                            'assets/logodm_cinza_btn.png',
-                            width: 32,
-                            height: 32,
-                            fit: BoxFit.contain,
-                          ),
+                        ? Image.asset('assets/logo_color.png',
+                            width: 32, height: 32, fit: BoxFit.contain)
+                        : Image.asset('assets/logodm_cinza_btn.png',
+                            width: 32, height: 32, fit: BoxFit.contain),
                   ),
                 ),
               ),
@@ -430,7 +411,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedIndex = index),
-      // Hitbox ampliada — não precisa clicar exatamente no ícone
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 52,
@@ -456,8 +436,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // ── Home screen ───────────────────────────────────────────────
-
   Widget _buildHomeScreen(User? user, Color primary, Color dark) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -468,8 +446,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final userData =
-            snapshot.data!.data() as Map<String, dynamic>;
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
         final String primeiroNome =
             (userData['nome'] ?? 'Professor').trim().split(' ').first;
 
@@ -478,20 +455,18 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             _buildSidebarHeader(primeiroNome, primary, dark),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(0, 10, 0, 120),
+                padding: const EdgeInsets.fromLTRB(0, 10, 0, 150),
                 children: [
                   _buildAgendaSection(user?.uid ?? '', primary, dark),
                   const SizedBox(height: 35),
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 25),
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: _buildSectionHeader('Atalhos', dark),
                   ),
                   const SizedBox(height: 15),
                   _buildGamificationBento(primary, dark),
                   const SizedBox(height: 40),
-                  _buildTurmasSection(
-                      user?.uid ?? '', primary, dark),
+                  _buildTurmasSection(user?.uid ?? '', primary, dark),
                 ],
               ),
             ),
@@ -501,10 +476,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────
-
-  Widget _buildSidebarHeader(
-      String name, Color primary, Color dark) {
+  Widget _buildSidebarHeader(String name, Color primary, Color dark) {
     return SafeArea(
       bottom: false,
       child: Container(
@@ -514,8 +486,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             width: 5,
             height: 50,
             decoration: BoxDecoration(
-                color: primary,
-                borderRadius: BorderRadius.circular(10)),
+                color: primary, borderRadius: BorderRadius.circular(10)),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -529,14 +500,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         fontWeight: FontWeight.w900,
                         letterSpacing: -1)),
                 Text(_dataFormatada(),
-                    style: const TextStyle(
-                        color: Colors.grey, fontSize: 14)),
+                    style: const TextStyle(color: Colors.grey, fontSize: 14)),
               ],
             ),
           ),
           IconButton(
-            onPressed: () =>
-                context.read<AuthBloc>().add(LogoutRequested()),
+            onPressed: () => context.read<AuthBloc>().add(LogoutRequested()),
             icon: Icon(Icons.logout_rounded, color: Colors.grey[400]),
           ),
         ]),
@@ -544,10 +513,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  // ── Agenda de hoje — vinda do Firestore ───────────────────────
-
-  Widget _buildAgendaSection(
-      String uid, Color primary, Color dark) {
+  Widget _buildAgendaSection(String uid, Color primary, Color dark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
@@ -555,20 +521,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         children: [
           _buildSectionHeader('Agenda de Hoje', dark),
           const SizedBox(height: 15),
-          AgendaStackedScroll(
-            primary: primary,
-            dark: dark,
-            professorId: uid,
-          ),
+          AgendaStackedScroll(primary: primary, dark: dark, professorId: uid),
         ],
       ),
     );
   }
 
-  // ── Atalhos (bento) ───────────────────────────────────────────
-
-  Widget _buildGamificationBento(Color primary, Color dark) =>
-      Padding(
+  Widget _buildGamificationBento(Color primary, Color dark) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 25),
         child: Row(children: [
           Expanded(
@@ -667,10 +626,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         ),
       );
 
-  // ── Turmas — vindas do Firestore ──────────────────────────────
-
-  Widget _buildTurmasSection(
-      String uid, Color primary, Color dark) {
+  Widget _buildTurmasSection(String uid, Color primary, Color dark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -679,9 +635,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           child: Row(children: [
             Text('Turmas',
                 style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: dark)),
+                    fontSize: 20, fontWeight: FontWeight.bold, color: dark)),
             const Spacer(),
             GestureDetector(
               onTap: () => setState(() => _selectedIndex = 0),
@@ -694,19 +648,16 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ]),
         ),
         const SizedBox(height: 15),
-
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('turmas')
-              
-              .limit(5) // Mostra no máximo 5 no dashboard
+              .limit(5)
               .snapshots(),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const SizedBox(
-                height: 160,
-                child: Center(child: CircularProgressIndicator()),
-              );
+                  height: 160,
+                  child: Center(child: CircularProgressIndicator()));
             }
 
             final turmas = snap.data?.docs
@@ -716,8 +667,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
             if (turmas.isEmpty) {
               return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 25),
+                padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -730,8 +680,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     ],
                   ),
                   child: Row(children: [
-                    const Text('🎓',
-                        style: TextStyle(fontSize: 24)),
+                    const Text('🎓', style: TextStyle(fontSize: 24)),
                     const SizedBox(width: 12),
                     Text('Nenhuma turma criada ainda.',
                         style: TextStyle(
@@ -758,59 +707,54 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildTurmaCard(
-      TurmaModel turma, Color primary, Color dark) {
-    final temPasso = turma.passoSemanaNome != null;
-
-    return Container(
-      width: 210,
-      margin: const EdgeInsets.only(right: 15, top: 6, bottom: 4),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04), blurRadius: 10)
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(turma.nome,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: dark),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text('${turma.modalidade} · ${turma.nivel}',
-              style: const TextStyle(
-                  color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 8),
-          // Alunos matriculados
-          Row(children: [
-            Icon(Icons.people_outline_rounded,
-                size: 13, color: Colors.grey[400]),
-            const SizedBox(width: 4),
-            Text('${turma.totalAlunos} aluno${turma.totalAlunos != 1 ? 's' : ''}',
+  Widget _buildTurmaCard(TurmaModel turma, Color primary, Color dark) {
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = 0),
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        width: 210,
+        margin: const EdgeInsets.only(right: 15, top: 6, bottom: 4),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04), blurRadius: 10)
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(turma.nome,
                 style: TextStyle(
-                    color: Colors.grey[400], fontSize: 12)),
-          ]),
-          Text(
-            'Passo da semana:',
-            style: TextStyle(
-                color: dark.withOpacity(0.5),
-                fontSize: 10,
-                fontWeight: FontWeight.bold),
-          ),
-          const Spacer(),
-          _PassoSemanaButton(
-            turma: turma,
-            primary: primary,
-            onTap: () => setState(() => _selectedIndex = 0),
-          ),
-        ],
+                    fontWeight: FontWeight.bold, fontSize: 16, color: dark),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            Text('${turma.modalidade} · ${turma.nivel}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.people_outline_rounded,
+                  size: 13, color: Colors.grey[400]),
+              const SizedBox(width: 4),
+              Text(
+                  '${turma.totalAlunos} aluno${turma.totalAlunos != 1 ? 's' : ''}',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            ]),
+            Text('Passo da semana:',
+                style: TextStyle(
+                    color: dark.withOpacity(0.5),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
+            const Spacer(),
+            _PassoSemanaButton(
+              turma: turma,
+              primary: primary,
+              onTap: () => setState(() => _selectedIndex = 0),
+            ),
+          ],
+        ),
       ),
     );
   }
