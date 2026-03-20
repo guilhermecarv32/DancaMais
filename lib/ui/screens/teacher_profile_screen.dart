@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dancamais/core/app_theme_notifier.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -313,50 +312,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
                 // ── Configurações ──────────────────────────────
                 const SizedBox(height: 28),
-                _buildSectionHeader('Configurações', dark,
-                    trailing: const SizedBox.shrink()),
-                const SizedBox(height: 14),
-                _buildCard(children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    child: Row(children: [
-                      Icon(Icons.dark_mode_rounded,
-                          size: 18, color: Colors.grey[400]),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Modo escuro',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppTheme.secondary)),
-                            Text('Altera o tema do aplicativo',
-                                style: TextStyle(
-                                    color: Colors.grey, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: _modoEscuro,
-                        activeColor: AppTheme.primary,
-                        onChanged: (val) async {
-                          setState(() => _modoEscuro = val);
-                          // Salva no Firestore
-                          await FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc(uid)
-                              .update({'modoEscuro': val});
-                          // Aplica o tema globalmente via singleton
-                          AppThemeNotifier.of(context)?.setDarkMode(val);
-                        },
-                      ),
-                    ]),
-                  ),
-                ]),
-
                 const SizedBox(height: 40),
                 _buildBotaoLogout(context),
               ],
