@@ -190,7 +190,7 @@ class _TurmasTab extends StatelessWidget {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(25, 15, 25, 30),
+          padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
           itemCount: turmas.length,
           itemBuilder: (_, i) =>
               _TurmaCard(turma: turmas[i], perfil: perfil),
