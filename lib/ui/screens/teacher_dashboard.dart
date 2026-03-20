@@ -374,10 +374,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildDockItem(0, Icons.groups_rounded,
-                  activeColor: Colors.blue[600]!,
+                  activeColor: AppTheme.primary,
                   inactiveColor: Colors.grey[400]!),
               _buildDockItem(1, Icons.auto_stories_rounded,
-                  activeColor: Colors.green[600]!,
+                  activeColor: AppTheme.primary,
                   inactiveColor: Colors.grey[400]!),
               // Botão Home com logo
               GestureDetector(
@@ -401,10 +401,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 ),
               ),
               _buildDockItem(3, Icons.workspace_premium_rounded,
-                  activeColor: Colors.amber[700]!,
+                  activeColor: AppTheme.primary,
                   inactiveColor: Colors.grey[400]!),
               _buildDockItem(4, Icons.person_rounded,
-                  activeColor: Colors.purple[600]!,
+                  activeColor: AppTheme.primary,
                   inactiveColor: Colors.grey[400]!),
             ],
           ),
