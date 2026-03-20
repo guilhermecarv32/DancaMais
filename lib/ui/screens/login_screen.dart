@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
@@ -24,6 +25,162 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _mostrarRecuperacaoSenha(BuildContext context) {
+    final emailCtrl = TextEditingController(text: _emailController.text.trim());
+    bool enviando = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+          return Container(
+            padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const Text('Recuperar senha',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.secondary)),
+                const SizedBox(height: 6),
+                const Text(
+                    'Informe seu e-mail e enviaremos um link para redefinir sua senha.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14)),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(14)),
+                  child: TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      hintText: 'Seu e-mail',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      prefixIcon: Icon(Icons.email_outlined,
+                          color: Colors.grey[400], size: 20),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: enviando
+                        ? null
+                        : () async {
+                            final email = emailCtrl.text.trim();
+                            if (email.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Informe seu e-mail.')),
+                              );
+                              return;
+                            }
+                            setModalState(() => enviando = true);
+                            try {
+                              await FirebaseAuth.instance
+                                  .sendPasswordResetEmail(email: email);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20)),
+                                    title: const Row(children: [
+                                      Text('✅ E-mail enviado'),
+                                    ]),
+                                    content: Text(
+                                        'Enviamos um link de redefinição para $email.\n\n'
+                                        'Não encontrou? Verifique a pasta de spam ou lixo eletrônico.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('OK',
+                                            style: TextStyle(
+                                                color: AppTheme.primary,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            } on FirebaseAuthException catch (e) {
+                              setModalState(() => enviando = false);
+                              final msg = e.code == 'user-not-found'
+                                  ? 'Nenhuma conta encontrada com esse e-mail. Verifique se digitou corretamente.'
+                                  : 'Erro ao enviar e-mail. Tente novamente.';
+                              if (context.mounted) {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20)),
+                                    title: const Row(children: [
+                                      Text('❌ Erro'),
+                                    ]),
+                                    content: Text(msg),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('OK',
+                                            style: TextStyle(
+                                                color: AppTheme.primary,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: enviando
+                        ? const SizedBox(
+                            height: 22, width: 22,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Enviar link',
+                            style: TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -130,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(color: Colors.grey)),
                         ]),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () => _mostrarRecuperacaoSenha(context),
                           child: const Text('Esqueci minha senha',
                               style: TextStyle(
                                   color: primaryColor,
