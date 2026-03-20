@@ -1035,7 +1035,7 @@ class _ModalidadesTab extends StatelessWidget {
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(25, 15, 25, 30),
+          padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
           itemCount: todas.length,
           itemBuilder: (_, i) => _ItemRemovivel(
             emoji: '💃',
@@ -1079,7 +1079,7 @@ class _NiveisTab extends StatelessWidget {
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(25, 15, 25, 30),
+          padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
           itemCount: todos.length,
           itemBuilder: (_, i) => _ItemRemovivel(
             emoji: '📊',

@@ -205,7 +205,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             }
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(25, 25, 25, 40),
+              padding: const EdgeInsets.fromLTRB(25, 25, 25, 120),
               children: [
                 _buildAvatar(nome, dark),
                 const SizedBox(height: 30),
