@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
+import '../widgets/tap_effect.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
   const TeacherProfileScreen({super.key});
@@ -343,12 +344,12 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         activeColor: AppTheme.primary,
                         onChanged: (val) async {
                           setState(() => _modoEscuro = val);
-                          // Salva preferência no Firestore
+                          // Salva no Firestore
                           await FirebaseFirestore.instance
                               .collection('usuarios')
                               .doc(uid)
                               .update({'modoEscuro': val});
-                          // Notifica o app para trocar o tema
+                          // Aplica o tema globalmente via singleton
                           AppThemeNotifier.of(context)?.setDarkMode(val);
                         },
                       ),
@@ -458,7 +459,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     runSpacing: 8,
                     children: todasModalidades.map((m) {
                       final sel = _modalidadesSelecionadas.contains(m);
-                      return GestureDetector(
+                      return TapEffect(
                         onTap: () => _toggleModalidade(m),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
@@ -607,7 +608,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                           ),
                           // Rejeitar — volta status para 'naoSolicitado'
                           // para o professor poder tentar de novo
-                          GestureDetector(
+                          TapEffect(
                             onTap: () => _responderSolicitacao(
                                 doc.id, false, nome),
                             child: Container(
@@ -622,7 +623,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                           ),
                           const SizedBox(width: 8),
                           // Aprovar
-                          GestureDetector(
+                          TapEffect(
                             onTap: () =>
                                 _responderSolicitacao(doc.id, true, nome),
                             child: Container(
@@ -743,7 +744,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   Widget _buildBotaoEditar(
       {String label = 'Editar', required VoidCallback onTap}) {
-    return GestureDetector(
+    return TapEffect(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -770,7 +771,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     required bool salvando,
   }) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      GestureDetector(
+      TapEffect(
         onTap: onCancelar,
         child: Container(
           padding:
@@ -787,7 +788,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         ),
       ),
       const SizedBox(width: 8),
-      GestureDetector(
+      TapEffect(
         onTap: onSalvar,
         child: Container(
           padding:
@@ -940,7 +941,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
               isDense: true,
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 14),
-              suffixIcon: GestureDetector(
+              suffixIcon: TapEffect(
                 onTap: onToggle,
                 child: Icon(
                   obscure
@@ -964,7 +965,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       color: Colors.grey[100]);
 
   Widget _buildBotaoLogout(BuildContext context) {
-    return GestureDetector(
+    return TapEffect(
       onTap: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(

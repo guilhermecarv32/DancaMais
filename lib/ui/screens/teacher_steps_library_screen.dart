@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
+import '../widgets/tap_effect.dart';
 
 // =============================================================
 // TELA PRINCIPAL
@@ -107,7 +108,7 @@ class _TeacherStepsLibraryScreenState
               ],
             ),
           ),
-          GestureDetector(
+          TapEffect(
             onTap: () => _abrirSheetNova(context, modalidades),
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -153,7 +154,7 @@ class _TeacherStepsLibraryScreenState
         itemBuilder: (context, index) {
           final m = todas[index];
           final sel = m == _modalidadeSelecionada;
-          return GestureDetector(
+          return TapEffect(
             onTap: () => setState(() => _modalidadeSelecionada = m),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -239,7 +240,7 @@ class _TeacherStepsLibraryScreenState
   }
 
   Widget _buildMovCard(MovimentacaoModel mov, PerfilProfessor perfil) {
-    return GestureDetector(
+    return TapEffect(
       onTap: () => _mostrarMenuOpcoes(mov, perfil),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -337,49 +338,77 @@ class _TeacherStepsLibraryScreenState
             const SizedBox(height: 20),
 
             if (temPermissao) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.edit_rounded,
-                      color: AppTheme.primary, size: 20),
-                ),
-                title: const Text('Editar',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                subtitle: const Text('Alterar nome, descrição ou música',
-                    style: TextStyle(fontSize: 12)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   _abrirSheetEditar(mov);
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.edit_rounded,
+                            color: AppTheme.primary, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Editar',
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                          Text('Alterar nome, descrição ou música',
+                              style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ]),
+                  ),
+                ),
               ),
               const Divider(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.redAccent, size: 20),
-                ),
-                title: const Text('Excluir',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: Colors.redAccent)),
-                subtitle: const Text('Remove permanentemente da biblioteca',
-                    style: TextStyle(fontSize: 12)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   _confirmarExcluir(mov);
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.delete_outline_rounded,
+                            color: Colors.redAccent, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Excluir',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: Colors.redAccent)),
+                          Text('Remove permanentemente da biblioteca',
+                              style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ]),
+                  ),
+                ),
               ),
             ] else
               Padding(
@@ -1008,7 +1037,7 @@ class _NovaMovimentacaoSheetState
       String label, TipoMovimentacao tipo, IconData icon) {
     final sel = _tipo == tipo;
     return Expanded(
-      child: GestureDetector(
+      child: TapEffect(
         onTap: () => setState(() => _tipo = tipo),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),

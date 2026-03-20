@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
+import '../widgets/tap_effect.dart';
 
 class TeacherClassesScreen extends StatefulWidget {
   const TeacherClassesScreen({super.key});
@@ -94,7 +95,7 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
               ],
             ),
           ),
-          GestureDetector(
+          TapEffect(
             onTap: actions[_tabIndex],
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -207,7 +208,7 @@ class _TurmaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapEffect(
       onTap: () => _mostrarOpcoes(context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -360,7 +361,7 @@ class _TurmaCard extends StatelessWidget {
                     ),
                   ),
                   if (turma.passoSemanaNome != null)
-                    GestureDetector(
+                    TapEffect(
                       onTap: () async {
                         await FirebaseFirestore.instance
                             .collection('turmas')
@@ -371,7 +372,7 @@ class _TurmaCard extends StatelessWidget {
                       child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
                     ),
                   const SizedBox(width: 8),
-                  GestureDetector(
+                  TapEffect(
                     onTap: () {
                       Navigator.pop(context);
                       showModalBottomSheet(
@@ -402,18 +403,7 @@ class _TurmaCard extends StatelessWidget {
             ],
 
             // Ver alunos — sempre visível
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.people_outline_rounded,
-                    color: Colors.blue, size: 20),
-              ),
-              title: const Text('Ver alunos',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+            TapEffect(
               onTap: () {
                 Navigator.pop(context);
                 showModalBottomSheet(
@@ -423,23 +413,32 @@ class _TurmaCard extends StatelessWidget {
                   builder: (_) => _AlunosTurmaSheet(turma: turma),
                 );
               },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Row(children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.people_outline_rounded,
+                        color: Colors.blue, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  const Text('Ver alunos',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                ])
+                  ),
+              ),
             ),
 
             // Editar e Excluir — só com permissão
             if (temPermissao) ...[
               const Divider(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.edit_rounded,
-                      color: AppTheme.primary, size: 20),
-                ),
-                title: const Text('Editar',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   showModalBottomSheet(
@@ -449,27 +448,56 @@ class _TurmaCard extends StatelessWidget {
                     builder: (_) => _EditarTurmaSheet(turma: turma),
                   );
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.edit_rounded,
+                          color: AppTheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Editar',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  ])
+                  ),
+                ),
               ),
               const Divider(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.redAccent, size: 20),
-                ),
-                title: const Text('Excluir',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: Colors.redAccent)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   _confirmarExcluir(context, turma);
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.redAccent, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Excluir',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.redAccent)),
+                  ])
+                  ),
+                ),
               ),
             ],
           ],
@@ -765,7 +793,7 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
                   children: _diasSemana.map((dia) {
                     final selecionado = _horarioControllers.containsKey(dia);
                     return Column(children: [
-                      GestureDetector(
+                      TapEffect(
                         onTap: () => _toggleDia(dia),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
@@ -894,7 +922,7 @@ class SeletorPassoSemanaSheet extends StatelessWidget {
           // Botão remover — só aparece se já tem passo definido
           if (turma.passoSemanaNome != null) ...[
             const SizedBox(height: 12),
-            GestureDetector(
+            TapEffect(
               onTap: () async {
                 await FirebaseFirestore.instance
                     .collection('turmas')
@@ -959,7 +987,7 @@ class SeletorPassoSemanaSheet extends StatelessWidget {
                     final nome = data['nome'] ?? '';
                     final tipo = data['tipo'] ?? '';
                     final isSelecionado = turma.passoSemanaId == movs[i].id;
-                    return GestureDetector(
+                    return TapEffect(
                       onTap: () async {
                         await FirebaseFirestore.instance
                             .collection('turmas')
@@ -1127,7 +1155,7 @@ class _ItemRemovivel extends StatelessWidget {
           child: Text(label,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.secondary)),
         ),
-        GestureDetector(
+        TapEffect(
           onTap: onRemover,
           child: Container(
             padding: const EdgeInsets.all(6),
@@ -1322,7 +1350,7 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
               children: _diasSemana.map((dia) {
                 final selecionado = _horarioControllers.containsKey(dia);
                 return Column(children: [
-                  GestureDetector(
+                  TapEffect(
                     onTap: () => _toggleDia(dia),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),

@@ -11,6 +11,7 @@ import 'teacher_steps_library_screen.dart';
 import 'teacher_badges_screen.dart';
 import 'teacher_classes_screen.dart';
 import 'teacher_profile_screen.dart';
+import '../widgets/tap_effect.dart';
 
 // =============================================================
 // AGENDA STACKED SCROLL — vinda do Firestore
@@ -380,7 +381,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   activeColor: AppTheme.primary,
                   inactiveColor: Colors.grey[400]!),
               // Botão Home com logo
-              GestureDetector(
+              TapEffect(
                 onTap: () => setState(() => _selectedIndex = 2),
                 child: Container(
                   width: 64,
@@ -418,7 +419,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     required Color inactiveColor,
   }) {
     final isSelected = _selectedIndex == index;
-    return GestureDetector(
+    return TapEffect(
       onTap: () => setState(() => _selectedIndex = index),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
@@ -570,7 +571,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   Widget _buildBigBentoCard(
       String title, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
+    return TapEffect(
       onTap: onTap,
       child: Container(
         height: 140,
@@ -607,7 +608,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   Widget _buildSmallBentoCard(
       String title, IconData icon, Color color, VoidCallback onTap) =>
-      GestureDetector(
+      TapEffect(
         onTap: onTap,
         child: Container(
           height: 64,
@@ -646,7 +647,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.bold, color: dark)),
             const Spacer(),
-            GestureDetector(
+            TapEffect(
               onTap: () => setState(() => _selectedIndex = 0),
               child: Text('Ver Tudo >>',
                   style: TextStyle(
@@ -724,7 +725,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             PerfilProfessor(isAdmin: false, modalidades: const []);
         final temPermissao = perfil.podeEditarModalidade(turma.modalidade);
 
-        return GestureDetector(
+        return TapEffect(
           onTap: () => setState(() => _selectedIndex = 0),
           behavior: HitTestBehavior.translucent,
           child: Container(

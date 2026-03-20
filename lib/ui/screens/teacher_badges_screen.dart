@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
+import '../widgets/tap_effect.dart';
 
 class TeacherBadgesScreen extends StatelessWidget {
   const TeacherBadgesScreen({super.key});
@@ -56,7 +57,7 @@ class TeacherBadgesScreen extends StatelessWidget {
             ),
           ),
           // Botão no cabeçalho — sempre visível, nunca coberto pelo dock
-          GestureDetector(
+          TapEffect(
             onTap: () => _abrirBottomSheetNovaConquista(context),
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -123,7 +124,7 @@ class TeacherBadgesScreen extends StatelessWidget {
 
   Widget _buildConquistaCard(
       BuildContext context, ConquistaModel conquista, PerfilProfessor perfil) {
-    return GestureDetector(
+    return TapEffect(
       onTap: () => _mostrarMenuConquista(context, conquista, perfil),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -236,40 +237,38 @@ class TeacherBadgesScreen extends StatelessWidget {
 
             // Conceder — só para manuais/especiais E da modalidade do professor
             if (conquista.isEspecial && temPermissao) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.card_giftcard_rounded,
-                      color: Colors.green, size: 20),
-                ),
-                title: const Text('Conceder a aluno',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   _abrirBottomSheetConceder(context, conquista);
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.card_giftcard_rounded,
+                          color: Colors.green, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Conceder a aluno',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  ])
+                  ),
+                ),
               ),
               const Divider(height: 8),
             ],
 
             // Editar e Excluir — só com permissão
             if (temPermissao) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.edit_rounded,
-                      color: AppTheme.primary, size: 20),
-                ),
-                title: const Text('Editar',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              TapEffect(
                 onTap: () {
                   Navigator.pop(context);
                   showModalBottomSheet(
@@ -279,23 +278,29 @@ class TeacherBadgesScreen extends StatelessWidget {
                     builder: (_) => _EditarConquistaSheet(conquista: conquista),
                   );
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.edit_rounded,
+                          color: AppTheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Editar',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  ])
+                  ),
+                ),
               ),
               const Divider(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.redAccent, size: 20),
-                ),
-                title: const Text('Excluir',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: Colors.redAccent)),
+              TapEffect(
                 onTap: () async {
                   Navigator.pop(context);
                   await FirebaseFirestore.instance
@@ -303,17 +308,43 @@ class TeacherBadgesScreen extends StatelessWidget {
                       .doc(conquista.id)
                       .delete();
                 },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.redAccent, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Excluir',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.redAccent)),
+                  ])
+                  ),
+                ),
               ),
             ] else
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(children: [
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Row(children: [
                   const Icon(Icons.lock_outline_rounded,
                       size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text('Somente visualização — fora da sua área',
                       style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-                ]),
+                ])
+                  ),
               ),
           ],
         ),
@@ -506,7 +537,7 @@ class _ConcederConquistaSheetState
                   runSpacing: 8,
                   children: turmas.map((t) {
                     final sel = _turmaSelecionadaId == t.id;
-                    return GestureDetector(
+                    return TapEffect(
                       onTap: () => setState(() {
                         _turmaSelecionadaId = t.id;
                         _alunoSelecionadoId = null;
@@ -589,7 +620,7 @@ class _ConcederConquistaSheetState
                           final nivel = data['nivel'] ?? 1;
                           final sel = _alunoSelecionadoId == doc.id;
 
-                          return GestureDetector(
+                          return TapEffect(
                             onTap: () => setState(() {
                               _alunoSelecionadoId = doc.id;
                               _alunoSelecionadoNome = nome;
