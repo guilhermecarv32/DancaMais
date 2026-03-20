@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
 
 // =============================================================
@@ -39,39 +40,48 @@ class _TeacherStepsLibraryScreenState
     const Color dark = AppTheme.secondary;
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('escola')
-              .doc('config')
-              .snapshots(),
-          builder: (context, configSnap) {
-            final data =
-                configSnap.data?.data() as Map<String, dynamic>?;
-            final modalidades =
-                List<String>.from(data?['modalidades'] ?? []);
+    return StreamBuilder<PerfilProfessor>(
+      stream: PermissaoService.perfilStream(),
+      builder: (context, perfilSnap) {
+        final perfil = perfilSnap.data ??
+            PerfilProfessor(isAdmin: false, modalidades: const []);
 
-            // Se o filtro selecionado foi removido, volta para "Todos"
-            if (_modalidadeSelecionada != 'Todos' &&
-                !modalidades.contains(_modalidadeSelecionada)) {
-              WidgetsBinding.instance.addPostFrameCallback(
-                  (_) => setState(() => _modalidadeSelecionada = 'Todos'));
-            }
+        return Scaffold(
+          backgroundColor: AppTheme.background,
+          body: SafeArea(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('escola')
+                  .doc('config')
+                  .snapshots(),
+              builder: (context, configSnap) {
+                final data = configSnap.data?.data() as Map<String, dynamic>?;
+                // Admin vê todas as modalidades; professor só as suas
+                final todasModalidades =
+                    List<String>.from(data?['modalidades'] ?? []);
+                // Mostra todas as modalidades no filtro
+                final modalidades = todasModalidades;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(dark, context, modalidades),
-                _buildModalidadeFilter(modalidades),
-                _buildTabBar(),
-                Expanded(child: _buildTabContent()),
-              ],
-            );
-          },
-        ),
-      ),
+                if (_modalidadeSelecionada != 'Todos' &&
+                    !modalidades.contains(_modalidadeSelecionada)) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => setState(() => _modalidadeSelecionada = 'Todos'));
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(dark, context, modalidades),
+                    _buildModalidadeFilter(modalidades),
+                    _buildTabBar(),
+                    Expanded(child: _buildTabContent(perfil)),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -185,24 +195,24 @@ class _TeacherStepsLibraryScreenState
     );
   }
 
-  Widget _buildTabContent() {
+  Widget _buildTabContent(PerfilProfessor perfil) {
     return TabBarView(
       controller: _tabController,
       children: [
-        _buildLista(TipoMovimentacao.passo),
-        _buildLista(TipoMovimentacao.coreografia),
+        _buildLista(TipoMovimentacao.passo, perfil),
+        _buildLista(TipoMovimentacao.coreografia, perfil),
       ],
     );
   }
 
-  Widget _buildLista(TipoMovimentacao tipo) {
+  Widget _buildLista(TipoMovimentacao tipo, PerfilProfessor perfil) {
     Query query = FirebaseFirestore.instance
         .collection('movimentacoes')
         .where('tipo', isEqualTo: tipo.name);
 
+    // Filtra por modalidade selecionada no filtro
     if (_modalidadeSelecionada != 'Todos') {
-      query = query.where('modalidade',
-          isEqualTo: _modalidadeSelecionada);
+      query = query.where('modalidade', isEqualTo: _modalidadeSelecionada);
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -222,15 +232,15 @@ class _TeacherStepsLibraryScreenState
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
           itemCount: items.length,
-          itemBuilder: (_, i) => _buildMovCard(items[i]),
+          itemBuilder: (_, i) => _buildMovCard(items[i], perfil),
         );
       },
     );
   }
 
-  Widget _buildMovCard(MovimentacaoModel mov) {
+  Widget _buildMovCard(MovimentacaoModel mov, PerfilProfessor perfil) {
     return GestureDetector(
-      onTap: () => _mostrarMenuOpcoes(mov),
+      onTap: () => _mostrarMenuOpcoes(mov, perfil),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
@@ -298,7 +308,9 @@ class _TeacherStepsLibraryScreenState
     );
   }
 
-  void _mostrarMenuOpcoes(MovimentacaoModel mov) {
+  void _mostrarMenuOpcoes(MovimentacaoModel mov, PerfilProfessor perfil) {
+    final temPermissao = perfil.podeEditarModalidade(mov.modalidade);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -312,7 +324,6 @@ class _TeacherStepsLibraryScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Nome da movimentação como título do menu
             Text(mov.nome,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -325,58 +336,62 @@ class _TeacherStepsLibraryScreenState
             ),
             const SizedBox(height: 20),
 
-            // Editar
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+            if (temPermissao) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.edit_rounded,
+                      color: AppTheme.primary, size: 20),
                 ),
-                child: const Icon(Icons.edit_rounded,
-                    color: AppTheme.primary, size: 20),
+                title: const Text('Editar',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                subtitle: const Text('Alterar nome, descrição ou música',
+                    style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _abrirSheetEditar(mov);
+                },
               ),
-              title: const Text('Editar',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 15)),
-              subtitle: const Text('Alterar nome, descrição ou música',
-                  style: TextStyle(fontSize: 12)),
-              onTap: () {
-                Navigator.pop(context);
-                _abrirSheetEditar(mov);
-              },
-            ),
-
-            const Divider(height: 8),
-
-            // Excluir
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
+              const Divider(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.redAccent, size: 20),
                 ),
-                child: const Icon(Icons.delete_outline_rounded,
-                    color: Colors.redAccent, size: 20),
+                title: const Text('Excluir',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.redAccent)),
+                subtitle: const Text('Remove permanentemente da biblioteca',
+                    style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmarExcluir(mov);
+                },
               ),
-              title: const Text('Excluir',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: Colors.redAccent)),
-              subtitle: const Text(
-                  'Remove permanentemente da biblioteca',
-                  style: TextStyle(fontSize: 12)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmarExcluir(mov);
-              },
-            ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('Somente visualização — modalidade fora da sua área',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                ]),
+              ),
           ],
         ),
       ),

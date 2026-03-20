@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/services/permissao_service.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
 import '../../models/models.dart';
@@ -716,59 +717,72 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Widget _buildTurmaCard(BuildContext context, TurmaModel turma, Color primary, Color dark) {
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = 0),
-      behavior: HitTestBehavior.translucent,
-      child: Container(
-        width: 210,
-        margin: const EdgeInsets.only(right: 15, top: 6, bottom: 4),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04), blurRadius: 10)
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(turma.nome,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: dark),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            Text('${turma.modalidade} · ${turma.nivel}',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
-            const SizedBox(height: 8),
-            Row(children: [
-              Icon(Icons.people_outline_rounded,
-                  size: 13, color: Colors.grey[400]),
-              const SizedBox(width: 4),
-              Text(
-                  '${turma.totalAlunos} aluno${turma.totalAlunos != 1 ? 's' : ''}',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-            ]),
-            Text('Passo da semana:',
-                style: TextStyle(
-                    color: dark.withOpacity(0.5),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold)),
-            const Spacer(),
-            _PassoSemanaButton(
-              turma: turma,
-              primary: primary,
-              onTap: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => SeletorPassoSemanaSheet(turma: turma),
-              ),
+    return StreamBuilder<PerfilProfessor>(
+      stream: PermissaoService.perfilStream(),
+      builder: (context, perfilSnap) {
+        final perfil = perfilSnap.data ??
+            PerfilProfessor(isAdmin: false, modalidades: const []);
+        final temPermissao = perfil.podeEditarModalidade(turma.modalidade);
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedIndex = 0),
+          behavior: HitTestBehavior.translucent,
+          child: Container(
+            width: 210,
+            margin: const EdgeInsets.only(right: 15, top: 6, bottom: 4),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.04), blurRadius: 10)
+              ],
             ),
-          ],
-        ),
-      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(turma.nome,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16, color: dark),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text('${turma.modalidade} · ${turma.nivel}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Icon(Icons.people_outline_rounded,
+                      size: 13, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text(
+                      '${turma.totalAlunos} aluno${turma.totalAlunos != 1 ? 's' : ''}',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                ]),
+                Text('Passo da semana:',
+                    style: TextStyle(
+                        color: dark.withOpacity(0.5),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                _PassoSemanaButton(
+                  turma: turma,
+                  primary: primary,
+                  habilitado: temPermissao,
+                  onTap: temPermissao
+                      ? () => showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) =>
+                                SeletorPassoSemanaSheet(turma: turma),
+                          )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -786,12 +800,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 class _PassoSemanaButton extends StatefulWidget {
   final TurmaModel turma;
   final Color primary;
-  final VoidCallback onTap;
+  final bool habilitado;
+  final VoidCallback? onTap;
 
   const _PassoSemanaButton({
     required this.turma,
     required this.primary,
     required this.onTap,
+    this.habilitado = true,
   });
 
   @override
@@ -826,33 +842,61 @@ class _PassoSemanaButtonState extends State<_PassoSemanaButton>
   @override
   Widget build(BuildContext context) {
     final temPasso = widget.turma.passoSemanaNome != null;
+    final habilitado = widget.habilitado;
 
     return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _controller.reverse(),
+      onTapDown: habilitado ? (_) => _controller.forward() : null,
+      onTapUp: habilitado
+          ? (_) {
+              _controller.reverse();
+              widget.onTap?.call();
+            }
+          : null,
+      onTapCancel: habilitado ? () => _controller.reverse() : null,
       child: ScaleTransition(
         scale: _scaleAnim,
         child: Container(
           width: double.infinity,
           height: 40,
           decoration: BoxDecoration(
-            color: temPasso ? widget.primary : Colors.white,
+            color: !habilitado
+                ? Colors.grey[100]
+                : temPasso
+                    ? widget.primary
+                    : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: widget.primary, width: 1.5),
-          ),
-          child: Center(
-            child: Text(
-              temPasso ? widget.turma.passoSemanaNome! : 'Definir passo',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: temPasso ? Colors.white : widget.primary),
-              overflow: TextOverflow.ellipsis,
+            border: Border.all(
+              color: habilitado ? widget.primary : Colors.grey[300]!,
+              width: 1.5,
             ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (!habilitado) ...[
+                Icon(Icons.lock_outline_rounded,
+                    size: 11, color: Colors.grey[400]),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  temPasso
+                      ? widget.turma.passoSemanaNome!
+                      : habilitado
+                          ? 'Definir passo'
+                          : 'Sem permissão',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: !habilitado
+                          ? Colors.grey[400]
+                          : temPasso
+                              ? Colors.white
+                              : widget.primary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

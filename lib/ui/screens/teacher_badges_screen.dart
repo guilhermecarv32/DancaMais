@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
 
 class TeacherBadgesScreen extends StatelessWidget {
@@ -11,17 +12,25 @@ class TeacherBadgesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color dark = AppTheme.secondary;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(dark, context),
-            Expanded(child: _buildConquistasList(context)),
-          ],
-        ),
-      ),
+    return StreamBuilder<PerfilProfessor>(
+      stream: PermissaoService.perfilStream(),
+      builder: (context, perfilSnap) {
+        final perfil = perfilSnap.data ??
+            PerfilProfessor(isAdmin: false, modalidades: const []);
+
+        return Scaffold(
+          backgroundColor: AppTheme.background,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(dark, context),
+                Expanded(child: _buildConquistasList(context, perfil)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -82,7 +91,7 @@ class TeacherBadgesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildConquistasList(BuildContext context) {
+  Widget _buildConquistasList(BuildContext context, PerfilProfessor perfil) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('conquistasCustom')
@@ -92,6 +101,7 @@ class TeacherBadgesScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // Professor vê todas as conquistas — restrição só nas ações
         final todasConquistas = snap.data?.docs
                 .map((d) => ConquistaModel.fromFirestore(d))
                 .toList() ??
@@ -105,16 +115,16 @@ class TeacherBadgesScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(25, 10, 25, 120),
           itemCount: todasConquistas.length,
           itemBuilder: (_, i) =>
-              _buildConquistaCard(context, todasConquistas[i]),
+              _buildConquistaCard(context, todasConquistas[i], perfil),
         );
       },
     );
   }
 
   Widget _buildConquistaCard(
-      BuildContext context, ConquistaModel conquista) {
+      BuildContext context, ConquistaModel conquista, PerfilProfessor perfil) {
     return GestureDetector(
-      onTap: () => _mostrarMenuConquista(context, conquista),
+      onTap: () => _mostrarMenuConquista(context, conquista, perfil),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
@@ -181,7 +191,14 @@ class TeacherBadgesScreen extends StatelessWidget {
   }
 
   void _mostrarMenuConquista(
-      BuildContext context, ConquistaModel conquista) {
+      BuildContext context, ConquistaModel conquista, PerfilProfessor perfil) {
+    // Permissão: admin vê tudo; professor só edita conquistas
+    // sem modalidade específica ou das suas modalidades
+    final modalidadeCriterio = conquista.criterio?.modalidade;
+    final temPermissao = perfil.isAdmin ||
+        modalidadeCriterio == null ||
+        perfil.modalidades.contains(modalidadeCriterio);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -217,8 +234,8 @@ class TeacherBadgesScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 16),
 
-            // Conceder (só para manuais/especiais)
-            if (conquista.isEspecial) ...[
+            // Conceder — só para manuais/especiais E da modalidade do professor
+            if (conquista.isEspecial && temPermissao) ...[
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Container(
@@ -239,52 +256,65 @@ class TeacherBadgesScreen extends StatelessWidget {
               const Divider(height: 8),
             ],
 
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.edit_rounded,
-                    color: AppTheme.primary, size: 20),
+            // Editar e Excluir — só com permissão
+            if (temPermissao) ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.edit_rounded,
+                      color: AppTheme.primary, size: 20),
+                ),
+                title: const Text('Editar',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                onTap: () {
+                  Navigator.pop(context);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => _EditarConquistaSheet(conquista: conquista),
+                  );
+                },
               ),
-              title: const Text('Editar',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-              onTap: () {
-                Navigator.pop(context);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => _EditarConquistaSheet(conquista: conquista),
-                );
-              },
-            ),
-            const Divider(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.delete_outline_rounded,
-                    color: Colors.redAccent, size: 20),
+              const Divider(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.redAccent, size: 20),
+                ),
+                title: const Text('Excluir',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.redAccent)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await FirebaseFirestore.instance
+                      .collection('conquistasCustom')
+                      .doc(conquista.id)
+                      .delete();
+                },
               ),
-              title: const Text('Excluir',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: Colors.redAccent)),
-              onTap: () async {
-                Navigator.pop(context);
-                await FirebaseFirestore.instance
-                    .collection('conquistasCustom')
-                    .doc(conquista.id)
-                    .delete();
-              },
-            ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('Somente visualização — fora da sua área',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                ]),
+              ),
           ],
         ),
       ),

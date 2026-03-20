@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
 
 class TeacherClassesScreen extends StatefulWidget {
@@ -33,27 +34,35 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
   Widget build(BuildContext context) {
     const Color dark = AppTheme.secondary;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(dark, context),
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: const [
-                  _TurmasTab(),
-                  _ModalidadesTab(),
-                  _NiveisTab(),
-                ],
-              ),
+    return StreamBuilder<PerfilProfessor>(
+      stream: PermissaoService.perfilStream(),
+      builder: (context, perfilSnap) {
+        final perfil = perfilSnap.data ??
+            PerfilProfessor(isAdmin: false, modalidades: const []);
+
+        return Scaffold(
+          backgroundColor: AppTheme.background,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(dark, context),
+                _buildTabBar(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _TurmasTab(perfil: perfil),
+                      _ModalidadesTab(),
+                      _NiveisTab(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -152,12 +161,11 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
 // ─────────────────────────────────────────────────────────────────
 
 class _TurmasTab extends StatelessWidget {
-  const _TurmasTab();
+  final PerfilProfessor perfil;
+  const _TurmasTab({required this.perfil});
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('turmas')
@@ -167,11 +175,12 @@ class _TurmasTab extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final turmas = snap.data?.docs
+        var turmas = snap.data?.docs
                 .map((d) => TurmaModel.fromFirestore(d))
                 .toList() ??
             [];
 
+        // Professor vê todas as turmas — filtragem apenas para edição
         if (turmas.isEmpty) {
           return _EmptyState(
             emoji: '🎓',
@@ -183,7 +192,8 @@ class _TurmasTab extends StatelessWidget {
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(25, 15, 25, 30),
           itemCount: turmas.length,
-          itemBuilder: (_, i) => _TurmaCard(turma: turmas[i]),
+          itemBuilder: (_, i) =>
+              _TurmaCard(turma: turmas[i], perfil: perfil),
         );
       },
     );
@@ -192,7 +202,8 @@ class _TurmasTab extends StatelessWidget {
 
 class _TurmaCard extends StatelessWidget {
   final TurmaModel turma;
-  const _TurmaCard({required this.turma});
+  final PerfilProfessor perfil;
+  const _TurmaCard({required this.turma, required this.perfil});
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +296,8 @@ class _TurmaCard extends StatelessWidget {
   }
 
   void _mostrarOpcoes(BuildContext context) {
+    final temPermissao = perfil.podeEditarModalidade(turma.modalidade);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -317,75 +330,78 @@ class _TurmaCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
 
-            // Passo da semana
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(children: [
-                const Icon(Icons.star_rounded, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Passo da semana',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      Text(
-                        turma.passoSemanaNome ?? 'Não definido',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: turma.passoSemanaNome != null
-                                ? AppTheme.secondary
-                                : Colors.grey[400]),
-                      ),
-                    ],
-                  ),
+            // Passo da semana — só se tiver permissão
+            if (temPermissao) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                if (turma.passoSemanaNome != null)
+                child: Row(children: [
+                  const Icon(Icons.star_rounded, size: 16, color: AppTheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Passo da semana',
+                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        Text(
+                          turma.passoSemanaNome ?? 'Não definido',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: turma.passoSemanaNome != null
+                                  ? AppTheme.secondary
+                                  : Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (turma.passoSemanaNome != null)
+                    GestureDetector(
+                      onTap: () async {
+                        await FirebaseFirestore.instance
+                            .collection('turmas')
+                            .doc(turma.id)
+                            .update({'passoSemanaId': null, 'passoSemanaNome': null});
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                    ),
+                  const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () async {
-                      await FirebaseFirestore.instance
-                          .collection('turmas')
-                          .doc(turma.id)
-                          .update({'passoSemanaId': null, 'passoSemanaNome': null});
-                      if (context.mounted) Navigator.pop(context);
+                    onTap: () {
+                      Navigator.pop(context);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => SeletorPassoSemanaSheet(turma: turma),
+                      );
                     },
-                    child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
-                  ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => SeletorPassoSemanaSheet(turma: turma),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      turma.passoSemanaNome != null ? 'Trocar' : 'Definir',
-                      style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        turma.passoSemanaNome != null ? 'Trocar' : 'Definir',
+                        style: const TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 12),
+                ]),
+              ),
+              const SizedBox(height: 12),
+            ],
 
+            // Ver alunos — sempre visível
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Container(
@@ -408,52 +424,54 @@ class _TurmaCard extends StatelessWidget {
                 );
               },
             ),
-            const Divider(height: 8),
 
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.edit_rounded,
-                    color: AppTheme.primary, size: 20),
+            // Editar e Excluir — só com permissão
+            if (temPermissao) ...[
+              const Divider(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.edit_rounded,
+                      color: AppTheme.primary, size: 20),
+                ),
+                title: const Text('Editar',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                onTap: () {
+                  Navigator.pop(context);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => _EditarTurmaSheet(turma: turma),
+                  );
+                },
               ),
-              title: const Text('Editar',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-              onTap: () {
-                Navigator.pop(context);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => _EditarTurmaSheet(turma: turma),
-                );
-              },
-            ),
-            const Divider(height: 8),
-
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.delete_outline_rounded,
-                    color: Colors.redAccent, size: 20),
+              const Divider(height: 8),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.redAccent, size: 20),
+                ),
+                title: const Text('Excluir',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmarExcluir(context, turma);
+                },
               ),
-              title: const Text('Excluir',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: Colors.redAccent)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmarExcluir(context, turma);
-              },
-            ),
+            ],
           ],
         ),
       ),
