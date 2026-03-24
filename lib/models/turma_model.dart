@@ -36,6 +36,11 @@ class TurmaModel {
 
   final int totalAlunos;
 
+  /// Papéis disponíveis para alunos nesta turma.
+  /// Ex: ['Condutor', 'Conduzido'] ou ['Líder', 'Seguidor']
+  /// Lista vazia significa que a turma não usa papéis.
+  final List<String> papeis;
+
   const TurmaModel({
     required this.id,
     required this.nome,
@@ -47,6 +52,7 @@ class TurmaModel {
     this.passoSemanaNome,
     this.horariosDia = const [],
     this.totalAlunos = 0,
+    this.papeis = const [],
   });
 
   /// Label formatada para exibição na agenda.
@@ -64,6 +70,9 @@ class TurmaModel {
     final match = horariosDia.where((h) => h.dia == hoje);
     return match.isNotEmpty ? match.first.horario : null;
   }
+
+  /// Indica se a turma tem papéis definidos.
+  bool get temPapeis => papeis.isNotEmpty;
 
   factory TurmaModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -92,6 +101,7 @@ class TurmaModel {
       passoSemanaNome: data['passoSemanaNome'],
       horariosDia: horarios,
       totalAlunos: data['totalAlunos'] ?? 0,
+      papeis: List<String>.from(data['papeis'] ?? []),
     );
   }
 
@@ -106,12 +116,14 @@ class TurmaModel {
       if (passoSemanaNome != null) 'passoSemanaNome': passoSemanaNome,
       'horariosDia': horariosDia.map((h) => h.toMap()).toList(),
       'totalAlunos': totalAlunos,
+      'papeis': papeis,
     };
   }
 
   TurmaModel copyWith({
     String? passoSemanaId,
     String? passoSemanaNome,
+    List<String>? papeis,
   }) {
     return TurmaModel(
       id: id,
@@ -124,6 +136,7 @@ class TurmaModel {
       passoSemanaNome: passoSemanaNome ?? this.passoSemanaNome,
       horariosDia: horariosDia,
       totalAlunos: totalAlunos,
+      papeis: papeis ?? this.papeis,
     );
   }
 }
