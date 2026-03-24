@@ -181,6 +181,7 @@ class _TurmasTab extends StatelessWidget {
                 .toList() ??
             [];
 
+        // Professor vê todas as turmas — filtragem apenas para edição
         if (turmas.isEmpty) {
           return _EmptyState(
             emoji: '🎓',
@@ -265,24 +266,6 @@ class _TurmaCard extends StatelessWidget {
                 ),
               ],
             ),
-            // Exibe os papéis definidos na turma
-            if (turma.temPapeis) ...[
-              const SizedBox(height: 10),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.people_alt_outlined, size: 13, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Wrap(
-                    spacing: 6,
-                    children: turma.papeis
-                        .map((p) => _Tag(p, AppTheme.primary))
-                        .toList(),
-                  ),
-                ],
-              ),
-            ],
             if (turma.horariosDia.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -348,6 +331,7 @@ class _TurmaCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
 
+            // Passo da semana — só se tiver permissão
             if (temPermissao) ...[
               Container(
                 padding: const EdgeInsets.all(14),
@@ -418,6 +402,7 @@ class _TurmaCard extends StatelessWidget {
               const SizedBox(height: 12),
             ],
 
+            // Ver alunos — sempre visível
             TapEffect(
               onTap: () {
                 Navigator.pop(context);
@@ -434,22 +419,23 @@ class _TurmaCard extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: Row(children: [
-                    Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.people_outline_rounded,
-                          color: Colors.blue, size: 20),
-                    ),
-                    const SizedBox(width: 16),
-                    const Text('Ver alunos',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  ]),
-                ),
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.people_outline_rounded,
+                        color: Colors.blue, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  const Text('Ver alunos',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                ])
+                  ),
               ),
             ),
 
+            // Editar e Excluir — só com permissão
             if (temPermissao) ...[
               const Divider(height: 8),
               TapEffect(
@@ -468,18 +454,18 @@ class _TurmaCard extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: Row(children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.edit_rounded,
-                            color: AppTheme.primary, size: 20),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text('Editar',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                    ]),
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.edit_rounded,
+                          color: AppTheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Editar',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  ])
                   ),
                 ),
               ),
@@ -495,21 +481,21 @@ class _TurmaCard extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: Row(children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.delete_outline_rounded,
-                            color: Colors.redAccent, size: 20),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text('Excluir',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: Colors.redAccent)),
-                    ]),
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.redAccent, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    const Text('Excluir',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.redAccent)),
+                  ])
                   ),
                 ),
               ),
@@ -588,8 +574,12 @@ class _AlunosTurmaSheet extends StatelessWidget {
                 .where('turmaId', isEqualTo: turma.id)
                 .snapshots(),
             builder: (context, inscSnap) {
-              final docs = inscSnap.data?.docs ?? [];
-              if (docs.isEmpty) {
+              final alunoIds = inscSnap.data?.docs
+                      .map((d) =>
+                          (d.data() as Map<String, dynamic>)['alunoId'] as String)
+                      .toList() ??
+                  [];
+              if (alunoIds.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 30),
                   child: Center(
@@ -602,15 +592,6 @@ class _AlunosTurmaSheet extends StatelessWidget {
                   ),
                 );
               }
-
-              // Monta mapa de alunoId → papel (se houver)
-              final Map<String, String?> papelPorAluno = {
-                for (final d in docs)
-                  (d.data() as Map<String, dynamic>)['alunoId'] as String:
-                      (d.data() as Map<String, dynamic>)['papel'] as String?,
-              };
-              final alunoIds = papelPorAluno.keys.toList();
-
               return StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('usuarios')
@@ -627,7 +608,6 @@ class _AlunosTurmaSheet extends StatelessWidget {
                         final nome = data['nome'] ?? 'Aluno';
                         final nivel = data['nivel'] ?? 1;
                         final xp = data['xp'] ?? 0;
-                        final papel = papelPorAluno[alunos[i].id];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -645,22 +625,11 @@ class _AlunosTurmaSheet extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(nome,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          color: AppTheme.secondary)),
-                                  if (papel != null)
-                                    Text(papel,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.primary,
-                                            fontWeight: FontWeight.w500)),
-                                ],
-                              ),
+                              child: Text(nome,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: AppTheme.secondary)),
                             ),
                             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                               Text('Nível $nivel',
@@ -686,185 +655,6 @@ class _AlunosTurmaSheet extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// WIDGET: EDITOR DE PAPÉIS (reutilizado em Nova Turma e Editar)
-// ─────────────────────────────────────────────────────────────────
-
-class _PapeisEditor extends StatefulWidget {
-  /// Lista inicial de papéis (pode ser vazia).
-  final List<String> papeisIniciais;
-
-  /// Callback chamado sempre que a lista de papéis mudar.
-  final void Function(List<String> papeis) onChanged;
-
-  const _PapeisEditor({
-    required this.papeisIniciais,
-    required this.onChanged,
-  });
-
-  @override
-  State<_PapeisEditor> createState() => _PapeisEditorState();
-}
-
-class _PapeisEditorState extends State<_PapeisEditor> {
-  late List<String> _papeis;
-  final TextEditingController _ctrl = TextEditingController();
-
-  // Sugestões rápidas para facilitar o preenchimento
-  static const _sugestoes = [
-    'Condutor', 'Conduzido'
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _papeis = List<String>.from(widget.papeisIniciais);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _adicionar(String valor) {
-    final nome = valor.trim();
-    if (nome.isEmpty || _papeis.contains(nome)) return;
-    setState(() => _papeis.add(nome));
-    _ctrl.clear();
-    widget.onChanged(_papeis);
-  }
-
-  void _remover(String papel) {
-    setState(() => _papeis.remove(papel));
-    widget.onChanged(_papeis);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Papéis já adicionados
-        if (_papeis.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _papeis.map((p) => _PapelChip(
-              label: p,
-              onRemove: () => _remover(p),
-            )).toList(),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // Sugestões rápidas (só mostra as ainda não adicionadas)
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: _sugestoes
-              .where((s) => !_papeis.contains(s))
-              .map((s) => TapEffect(
-                    onTap: () => _adicionar(s),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.07),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: AppTheme.primary.withOpacity(0.2)),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.add_rounded,
-                            size: 13, color: AppTheme.primary),
-                        const SizedBox(width: 4),
-                        Text(s,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w500)),
-                      ]),
-                    ),
-                  ))
-              .toList(),
-        ),
-
-        const SizedBox(height: 10),
-
-        // Campo livre para papel personalizado
-        Row(children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: _ctrl,
-                textCapitalization: TextCapitalization.words,
-                style: const TextStyle(fontSize: 13, color: AppTheme.secondary),
-                decoration: InputDecoration(
-                  hintText: 'Papel personalizado...',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
-                ),
-                onSubmitted: _adicionar,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          TapEffect(
-            onTap: () => _adicionar(_ctrl.text),
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.add_rounded,
-                  color: Colors.white, size: 20),
-            ),
-          ),
-        ]),
-      ],
-    );
-  }
-}
-
-class _PapelChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onRemove;
-  const _PapelChip({required this.label, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.primary,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(width: 4),
-        TapEffect(
-          onTap: onRemove,
-          child: const Icon(Icons.close_rounded,
-              size: 14, color: AppTheme.primary),
-        ),
-      ]),
-    );
-  }
-}
-
 // ── Sheet: Editar Turma ───────────────────────────────────────────
 
 class _EditarTurmaSheet extends StatefulWidget {
@@ -880,7 +670,7 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
   String? _modalidade;
   String? _nivel;
   final Map<String, TextEditingController> _horarioControllers = {};
-  late List<String> _papeis;
+  List<String> _papeis = [];
   bool _salvando = false;
 
   final _diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -891,7 +681,7 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
     _nomeCtrl = TextEditingController(text: widget.turma.nome);
     _modalidade = widget.turma.modalidade;
     _nivel = widget.turma.nivel;
-    _papeis = List<String>.from(widget.turma.papeis);
+    _papeis = List<String>.from(widget.turma.papeisAlunos);
     for (final h in widget.turma.horariosDia) {
       _horarioControllers[h.dia] = TextEditingController(text: h.horario);
     }
@@ -936,7 +726,7 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
       'modalidade': _modalidade,
       'nivel': _nivel,
       'horariosDia': horariosDia.map((h) => h.toMap()).toList(),
-      'papeis': _papeis,
+      'papeisAlunos': _papeis,
     });
     if (mounted) Navigator.pop(context);
   }
@@ -1001,20 +791,6 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
                   },
                 ),
                 const SizedBox(height: 14),
-
-                // ── Seção de Papéis ──────────────────────────────
-                _SheetLabel('Papéis dos alunos (opcional)'),
-                const Text(
-                  'Defina os papéis que os alunos podem assumir nesta turma.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 10),
-                _PapeisEditor(
-                  papeisIniciais: _papeis,
-                  onChanged: (novos) => setState(() => _papeis = novos),
-                ),
-                const SizedBox(height: 14),
-
                 _SheetLabel('Dias e horários'),
                 Column(
                   children: _diasSemana.map((dia) {
@@ -1088,6 +864,12 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
+                _SheetLabel('Papéis dos alunos (opcional)'),
+                _PapeisEditor(
+                  papeis: _papeis,
+                  onChanged: (p) => setState(() => _papeis = p),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -1146,6 +928,7 @@ class SeletorPassoSemanaSheet extends StatelessWidget {
           Text('Selecione para "${turma.nome}"',
               style: const TextStyle(color: Colors.grey, fontSize: 13)),
 
+          // Botão remover — só aparece se já tem passo definido
           if (turma.passoSemanaNome != null) ...[
             const SizedBox(height: 12),
             TapEffect(
@@ -1516,7 +1299,7 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
     final turma = TurmaModel(
       id: '', nome: _nomeCtrl.text.trim(), modalidade: _modalidade!,
       nivel: _nivel!, professorId: uid, dataCriacao: DateTime.now(),
-      horariosDia: horariosDia, papeis: _papeis,
+      horariosDia: horariosDia, papeisAlunos: _papeis,
     );
     await FirebaseFirestore.instance.collection('turmas').add(turma.toMap());
     if (mounted) Navigator.pop(context);
@@ -1573,20 +1356,6 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
               },
             ),
             const SizedBox(height: 14),
-
-            // ── Seção de Papéis ──────────────────────────────────
-            _SheetLabel('Papéis dos alunos (opcional)'),
-            const Text(
-              'Defina os papéis que os alunos podem assumir nesta turma.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 10),
-            _PapeisEditor(
-              papeisIniciais: _papeis,
-              onChanged: (novos) => setState(() => _papeis = novos),
-            ),
-            const SizedBox(height: 14),
-
             _SheetLabel('Dias e horários (opcional)'),
             Column(
               children: _diasSemana.map((dia) {
@@ -1654,6 +1423,12 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
                   const SizedBox(height: 8),
                 ]);
               }).toList(),
+            ),
+            const SizedBox(height: 24),
+            _SheetLabel('Papéis dos alunos (opcional)'),
+            _PapeisEditor(
+              papeis: _papeis,
+              onChanged: (p) => setState(() => _papeis = p),
             ),
             const SizedBox(height: 24),
             _BotaoSalvar(label: 'Criar Turma', salvando: _salvando, onTap: _salvar),
@@ -1856,4 +1631,114 @@ class _BotaoSalvar extends StatelessWidget {
           : Text(label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
     ),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// WIDGET: EDITOR DE PAPÉIS DE ALUNO
+// ─────────────────────────────────────────────────────────────────
+
+class _PapeisEditor extends StatefulWidget {
+  final List<String> papeis;
+  final ValueChanged<List<String>> onChanged;
+
+  const _PapeisEditor({required this.papeis, required this.onChanged});
+
+  @override
+  State<_PapeisEditor> createState() => _PapeisEditorState();
+}
+
+class _PapeisEditorState extends State<_PapeisEditor> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _adicionar() {
+    final valor = _ctrl.text.trim();
+    if (valor.isEmpty || widget.papeis.contains(valor)) return;
+    final novos = [...widget.papeis, valor];
+    widget.onChanged(novos);
+    _ctrl.clear();
+  }
+
+  void _remover(String papel) {
+    final novos = widget.papeis.where((p) => p != papel).toList();
+    widget.onChanged(novos);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Campo de entrada
+        Row(children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(14)),
+              child: TextField(
+                controller: _ctrl,
+                textCapitalization: TextCapitalization.words,
+                onSubmitted: (_) => _adicionar(),
+                decoration: InputDecoration(
+                  hintText: 'Ex: Condutor, Conduzido...',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TapEffect(
+            onTap: _adicionar,
+            child: Container(
+              width: 46, height: 46,
+              decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(14)),
+              child: const Icon(Icons.add_rounded,
+                  color: Colors.white, size: 22),
+            ),
+          ),
+        ]),
+
+        // Chips dos papéis adicionados
+        if (widget.papeis.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: widget.papeis.map((papel) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppTheme.primary.withOpacity(0.25), width: 1),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(papel,
+                    style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+                TapEffect(
+                  onTap: () => _remover(papel),
+                  child: const Icon(Icons.close_rounded,
+                      size: 14, color: AppTheme.primary),
+                ),
+              ]),
+            )).toList(),
+          ),
+        ],
+      ],
+    );
+  }
 }

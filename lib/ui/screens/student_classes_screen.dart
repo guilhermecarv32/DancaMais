@@ -516,29 +516,80 @@ class _SolicitacaoSheetState extends State<_SolicitacaoSheet> {
                   ),
                 ),
               ] else ...[
-                // Formulário de solicitação
-                Text('Qual sua função nesta turma? (opcional)',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: Colors.grey[600])),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.circular(14)),
-                  child: TextField(
-                    controller: _funcaoCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Ex: Condutor, Conduzido, Ambos...',
-                      hintStyle:
-                          TextStyle(color: Colors.grey[400], fontSize: 14),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                // Se a turma tem papéis definidos, mostra como chips
+                if (widget.turma.papeisAlunos.isNotEmpty) ...[
+                  Text('Qual será seu papel nesta turma?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.grey[600])),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: widget.turma.papeisAlunos.map((papel) {
+                      final sel = _funcaoCtrl.text == papel;
+                      return TapEffect(
+                        onTap: () => setState(() =>
+                            _funcaoCtrl.text = sel ? '' : papel),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? AppTheme.primary.withOpacity(0.1)
+                                : AppTheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: sel
+                                  ? AppTheme.primary
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            if (sel) ...[
+                              const Icon(Icons.check_rounded,
+                                  size: 14, color: AppTheme.primary),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(papel,
+                                style: TextStyle(
+                                    color: sel
+                                        ? AppTheme.primary
+                                        : Colors.grey[600],
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14)),
+                          ]),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ] else ...[
+                  // Turma sem papéis definidos: campo livre opcional
+                  Text('Qual sua função nesta turma? (opcional)',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.grey[600])),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(14)),
+                    child: TextField(
+                      controller: _funcaoCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Ex: Condutor, Conduzido, Ambos...',
+                        hintStyle: TextStyle(
+                            color: Colors.grey[400], fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
                     ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 20),
                 TapEffect(
                   onTap: _enviando ? null : _enviarSolicitacao,
