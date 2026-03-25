@@ -1,10 +1,73 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
+
+/// Normaliza horários para o padrão `HH:mm` ou `HH:mm - HH:mm`.
+String formatHorarioTurma(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty || s == '—') return s;
+  final chunks = s.split(RegExp(r'\s*[-–—]\s*'));
+  if (chunks.length >= 2) {
+    return chunks.map((c) => _umHorarioXX(c.trim())).join(' - ');
+  }
+  return _umHorarioXX(s);
+}
+
+String _umHorarioXX(String raw) {
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return raw.trim();
+  int h;
+  int m;
+  if (digits.length <= 2) {
+    h = int.parse(digits);
+    m = 0;
+  } else if (digits.length == 3) {
+    h = int.parse(digits.substring(0, 1));
+    m = int.parse(digits.substring(1));
+  } else {
+    h = int.parse(digits.substring(0, 2));
+    m = int.parse(digits.substring(2, 4));
+  }
+  h = h.clamp(0, 23);
+  m = m.clamp(0, 59);
+  return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+}
+
+/// Primeiro horário do dia (intervalos legados `HH:mm - HH:mm` viram só o início no campo).
+String horarioInicialCampoTurma(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty || t == '—') return '';
+  final first = t.split(RegExp(r'\s*[-–—]\s*')).first.trim();
+  return formatHorarioTurma(first);
+}
+
+/// Aceita no máximo 4 dígitos; exibe em tempo real como `xx:xx` (ex.: `1800` → `18:00`).
+class HorarioQuatroDigitosFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 4) {
+      return oldValue;
+    }
+    final formatted = _digitsParaExibicao(digits);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  static String _digitsParaExibicao(String d) {
+    if (d.isEmpty) return '';
+    if (d.length <= 2) return d;
+    return '${d.substring(0, 2)}:${d.substring(2)}';
+  }
+}
 
 class TeacherClassesScreen extends StatefulWidget {
   const TeacherClassesScreen({super.key});
@@ -214,6 +277,45 @@ class _TurmasTab extends StatelessWidget {
   }
 }
 
+/// Ícone ao lado do nome da turma quando há solicitações pendentes (somente indicador visual).
+class _IconeSolicitacoesPendentes extends StatelessWidget {
+  final String turmaId;
+  const _IconeSolicitacoesPendentes({required this.turmaId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('solicitacoes')
+          .doc(turmaId)
+          .collection('pendentes')
+          .snapshots(),
+      builder: (context, snap) {
+        final total = snap.data?.docs.length ?? 0;
+        if (total == 0) return const SizedBox.shrink();
+        return Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.orange.withOpacity(0.16),
+            border: Border.all(
+              color: Colors.orange.withOpacity(0.38),
+              width: 1,
+            ),
+          ),
+          child: Icon(
+            Icons.person_add_alt_1_rounded,
+            size: 16,
+            color: Colors.orange.shade800,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _TurmaCard extends StatelessWidget {
   final TurmaModel turma;
   final PerfilProfessor perfil;
@@ -253,11 +355,24 @@ class _TurmaCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(turma.nome,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppTheme.secondary)),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(turma.nome,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppTheme.secondary)),
+                          ),
+                          if (temPermissao) ...[
+                            const SizedBox(width: 4),
+                            _IconeSolicitacoesPendentes(turmaId: turma.id),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 3),
                       Row(children: [
                         _Tag(turma.modalidade, Colors.grey),
@@ -283,15 +398,6 @@ class _TurmaCard extends StatelessWidget {
                 ),
               ],
             ),
-            // Badge de solicitações — linha separada abaixo do header do card
-            if (temPermissao)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: _BadgeSolicitacoesTurma(
-                  turmaId: turma.id,
-                  onTap: () => _abrirSolicitacoes(context),
-                ),
-              ),
             if (turma.horariosDia.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -310,7 +416,7 @@ class _TurmaCard extends StatelessWidget {
                         fontSize: 12,
                         color: AppTheme.secondary)),
                     const SizedBox(width: 6),
-                    Text(h.horario, style: const TextStyle(
+                    Text(formatHorarioTurma(h.horario), style: const TextStyle(
                         fontSize: 12, color: Colors.grey)),
                   ]),
                 )).toList(),
@@ -319,15 +425,6 @@ class _TurmaCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  void _abrirSolicitacoes(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SolicitacoesTurmaSheet(turma: turma),
     );
   }
 
@@ -470,9 +567,48 @@ class _TurmaCard extends StatelessWidget {
               ),
             ),
 
+            // Solicitações de entrada — só com permissão (abaixo de Ver alunos)
+            if (temPermissao) ...[
+              TapEffect(
+                onTap: () {
+                  Navigator.pop(context);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => _SolicitacoesTurmaSheet(turma: turma),
+                  );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.person_add_alt_1_rounded,
+                            color: Colors.orange[800], size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Text('Solicitações',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Colors.orange[900])),
+                    ]),
+                  ),
+                ),
+              ),
+              const Divider(height: 8),
+            ],
+
             // Editar e Excluir — só com permissão
             if (temPermissao) ...[
-              const Divider(height: 8),
               TapEffect(
                 onTap: () {
                   Navigator.pop(context);
@@ -554,11 +690,11 @@ class _TurmaCard extends StatelessWidget {
               child: const Text('Cancelar')),
           TextButton(
             onPressed: () async {
+              Navigator.of(context).pop();
               await FirebaseFirestore.instance
                   .collection('turmas')
                   .doc(turma.id)
                   .delete();
-              if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Excluir', style: TextStyle(color: Colors.red)),
           ),
@@ -718,7 +854,10 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
     _nivel = widget.turma.nivel;
     _papeis = List<String>.from(widget.turma.papeisAlunos);
     for (final h in widget.turma.horariosDia) {
-      _horarioControllers[h.dia] = TextEditingController(text: h.horario);
+      final raw = h.horario.trim();
+      _horarioControllers[h.dia] = TextEditingController(
+        text: raw.isEmpty || raw == '—' ? '' : horarioInicialCampoTurma(h.horario),
+      );
     }
   }
 
@@ -749,9 +888,13 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
     }
     setState(() => _salvando = true);
     final horariosDia = _horarioControllers.entries
-        .map((e) => HorarioDia(
+        .map((e) {
+          final t = e.value.text.trim();
+          return HorarioDia(
             dia: e.key,
-            horario: e.value.text.trim().isEmpty ? '—' : e.value.text.trim()))
+            horario: t.isEmpty || t == '—' ? '—' : formatHorarioTurma(t),
+          );
+        })
         .toList();
     await FirebaseFirestore.instance
         .collection('turmas')
@@ -880,14 +1023,27 @@ class _EditarTurmaSheetState extends State<_EditarTurmaSheet> {
                                 ),
                                 child: TextField(
                                   controller: _horarioControllers[dia],
-                                  keyboardType: TextInputType.datetime,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    HorarioQuatroDigitosFormatter(),
+                                  ],
                                   style: const TextStyle(fontSize: 13, color: AppTheme.secondary),
                                   decoration: const InputDecoration(
-                                    hintText: 'Ex: 18:00 - 19:00',
+                                    hintText: 'Ex: 18:00',
                                     border: InputBorder.none,
                                     isDense: true,
                                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   ),
+                                  onEditingComplete: () {
+                                    final c = _horarioControllers[dia]!;
+                                    final t = c.text.trim();
+                                    if (t.isEmpty || t == '—') return;
+                                    final f = formatHorarioTurma(t);
+                                    c.value = TextEditingValue(
+                                      text: f,
+                                      selection: TextSelection.collapsed(offset: f.length),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -1328,8 +1484,13 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
     setState(() => _salvando = true);
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final horariosDia = _horarioControllers.entries
-        .map((e) => HorarioDia(
-            dia: e.key, horario: e.value.text.trim().isEmpty ? '—' : e.value.text.trim()))
+        .map((e) {
+          final t = e.value.text.trim();
+          return HorarioDia(
+            dia: e.key,
+            horario: t.isEmpty || t == '—' ? '—' : formatHorarioTurma(t),
+          );
+        })
         .toList();
     final turma = TurmaModel(
       id: '', nome: _nomeCtrl.text.trim(), modalidade: _modalidade!,
@@ -1342,134 +1503,156 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Alca(),
-            const Text('Nova Turma',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.secondary)),
-            const SizedBox(height: 20),
-            _SheetLabel('Nome da turma'),
-            _SheetInput(_nomeCtrl, 'Ex: Turma Iniciante 1'),
-            const SizedBox(height: 14),
-            _SheetLabel('Modalidade'),
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('escola').doc('config').snapshots(),
-              builder: (context, snap) {
-                final data = snap.data?.data() as Map<String, dynamic>?;
-                final todas = List<String>.from(data?['modalidades'] ?? []);
-                if (todas.isEmpty) return _SheetAviso('Cadastre modalidades na aba "Modalidades" primeiro.');
-                return _SheetDropdown<String>(
-                  value: todas.contains(_modalidade) ? _modalidade : null,
-                  hint: 'Selecione a modalidade', items: todas, label: (m) => m,
-                  onChanged: (v) => setState(() => _modalidade = v),
-                );
-              },
-            ),
-            const SizedBox(height: 14),
-            _SheetLabel('Nível'),
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('escola').doc('config').snapshots(),
-              builder: (context, snap) {
-                final data = snap.data?.data() as Map<String, dynamic>?;
-                final todos = List<String>.from(data?['niveis'] ?? []);
-                if (todos.isEmpty) return _SheetAviso('Cadastre níveis na aba "Níveis" primeiro.');
-                return _SheetDropdown<String>(
-                  value: todos.contains(_nivel) ? _nivel : null,
-                  hint: 'Selecione o nível', items: todos, label: (n) => n,
-                  onChanged: (v) => setState(() => _nivel = v),
-                );
-              },
-            ),
-            const SizedBox(height: 14),
-            _SheetLabel('Dias e horários (opcional)'),
-            Column(
-              children: _diasSemana.map((dia) {
-                final selecionado = _horarioControllers.containsKey(dia);
-                return Column(children: [
-                  TapEffect(
-                    onTap: () => _toggleDia(dia),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                      decoration: BoxDecoration(
-                        color: selecionado ? AppTheme.primary.withOpacity(0.07) : AppTheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selecionado ? AppTheme.primary : Colors.transparent, width: 1.5),
-                      ),
-                      child: Row(children: [
-                        AnimatedContainer(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) {
+        final bottom = MediaQuery.of(context).viewInsets.bottom;
+        return Container(
+          padding: EdgeInsets.fromLTRB(25, 12, 25, 25 + bottom),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Alca(),
+                const Text('Nova Turma',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.secondary)),
+                const SizedBox(height: 20),
+                _SheetLabel('Nome da turma'),
+                _SheetInput(_nomeCtrl, 'Ex: Turma Iniciante 1'),
+                const SizedBox(height: 14),
+                _SheetLabel('Modalidade'),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('escola').doc('config').snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data() as Map<String, dynamic>?;
+                    final todas = List<String>.from(data?['modalidades'] ?? []);
+                    if (todas.isEmpty) return _SheetAviso('Cadastre modalidades na aba "Modalidades" primeiro.');
+                    return _SheetDropdown<String>(
+                      value: todas.contains(_modalidade) ? _modalidade : null,
+                      hint: 'Selecione a modalidade', items: todas, label: (m) => m,
+                      onChanged: (v) => setState(() => _modalidade = v),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                _SheetLabel('Nível'),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('escola').doc('config').snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data() as Map<String, dynamic>?;
+                    final todos = List<String>.from(data?['niveis'] ?? []);
+                    if (todos.isEmpty) return _SheetAviso('Cadastre níveis na aba "Níveis" primeiro.');
+                    return _SheetDropdown<String>(
+                      value: todos.contains(_nivel) ? _nivel : null,
+                      hint: 'Selecione o nível', items: todos, label: (n) => n,
+                      onChanged: (v) => setState(() => _nivel = v),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                _SheetLabel('Dias e horários (opcional)'),
+                Column(
+                  children: _diasSemana.map((dia) {
+                    final selecionado = _horarioControllers.containsKey(dia);
+                    return Column(children: [
+                      TapEffect(
+                        onTap: () => _toggleDia(dia),
+                        child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          width: 20, height: 20,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                           decoration: BoxDecoration(
-                            color: selecionado ? AppTheme.primary : Colors.grey.withOpacity(0.15),
-                            shape: BoxShape.circle,
+                            color: selecionado ? AppTheme.primary.withOpacity(0.07) : AppTheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selecionado ? AppTheme.primary : Colors.transparent, width: 1.5),
                           ),
-                          child: selecionado
-                              ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(dia, style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14,
-                            color: selecionado ? AppTheme.primary : Colors.grey[600])),
-                      ]),
-                    ),
-                  ),
-                  if (selecionado) ...[
-                    const SizedBox(height: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Row(children: [
-                        const Icon(Icons.access_time_rounded, size: 16, color: AppTheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                          child: Row(children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 20, height: 20,
+                              decoration: BoxDecoration(
+                                color: selecionado ? AppTheme.primary : Colors.grey.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: selecionado
+                                  ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                                  : null,
                             ),
-                            child: TextField(
-                              controller: _horarioControllers[dia],
-                              keyboardType: TextInputType.datetime,
-                              style: const TextStyle(fontSize: 13, color: AppTheme.secondary),
-                              decoration: const InputDecoration(
-                                hintText: 'Ex: 18:00 - 19:00', border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            const SizedBox(width: 12),
+                            Text(dia, style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 14,
+                                color: selecionado ? AppTheme.primary : Colors.grey[600])),
+                          ]),
+                        ),
+                      ),
+                      if (selecionado) ...[
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: Row(children: [
+                            const Icon(Icons.access_time_rounded, size: 16, color: AppTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                                ),
+                                child: TextField(
+                                  controller: _horarioControllers[dia],
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    HorarioQuatroDigitosFormatter(),
+                                  ],
+                                  style: const TextStyle(fontSize: 13, color: AppTheme.secondary),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Ex: 18:00', border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  ),
+                                  onEditingComplete: () {
+                                    final c = _horarioControllers[dia]!;
+                                    final t = c.text.trim();
+                                    if (t.isEmpty || t == '—') return;
+                                    final f = formatHorarioTurma(t);
+                                    c.value = TextEditingValue(
+                                      text: f,
+                                      selection: TextSelection.collapsed(offset: f.length),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
-                          ),
+                          ]),
                         ),
-                      ]),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                ]);
-              }).toList(),
+                      ],
+                      const SizedBox(height: 8),
+                    ]);
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                _SheetLabel('Papéis dos alunos (opcional)'),
+                _PapeisEditor(
+                  papeis: _papeis,
+                  onChanged: (p) => setState(() => _papeis = p),
+                ),
+                const SizedBox(height: 24),
+                _BotaoSalvar(label: 'Criar Turma', salvando: _salvando, onTap: _salvar),
+              ],
             ),
-            const SizedBox(height: 24),
-            _SheetLabel('Papéis dos alunos (opcional)'),
-            _PapeisEditor(
-              papeis: _papeis,
-              onChanged: (p) => setState(() => _papeis = p),
-            ),
-            const SizedBox(height: 24),
-            _BotaoSalvar(label: 'Criar Turma', salvando: _salvando, onTap: _salvar),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1618,54 +1801,6 @@ class _BadgeSolicitacoesGlobal extends StatelessWidget {
       total += snap.docs.length;
     }
     return total;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────
-// BADGE: SOLICITAÇÕES NO CARD DA TURMA
-// ─────────────────────────────────────────────────────────────────
-
-class _BadgeSolicitacoesTurma extends StatelessWidget {
-  final String turmaId;
-  final VoidCallback onTap;
-  const _BadgeSolicitacoesTurma(
-      {required this.turmaId, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('solicitacoes')
-          .doc(turmaId)
-          .collection('pendentes')
-          .snapshots(),
-      builder: (context, snap) {
-        final total = snap.data?.docs.length ?? 0;
-        if (total == 0) return const SizedBox.shrink();
-        return TapEffect(
-          onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 4),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(20)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.person_add_rounded,
-                  size: 12, color: Colors.white),
-              const SizedBox(width: 4),
-              Text(
-                  '$total solicitaç${total == 1 ? 'ão' : 'ões'}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold)),
-            ]),
-          ),
-        );
-      },
-    );
   }
 }
 
