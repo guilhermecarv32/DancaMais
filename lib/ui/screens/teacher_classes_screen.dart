@@ -542,7 +542,10 @@ class _TurmaCard extends StatelessWidget {
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => _AlunosTurmaSheet(turma: turma),
+                  builder: (_) => _AlunosTurmaSheet(
+                    turma: turma,
+                    podeRemoverAlunos: perfil.isAdmin || temPermissao,
+                  ),
                 );
               },
               behavior: HitTestBehavior.opaque,
@@ -708,7 +711,8 @@ class _TurmaCard extends StatelessWidget {
 
 class _AlunosTurmaSheet extends StatelessWidget {
   final TurmaModel turma;
-  const _AlunosTurmaSheet({required this.turma});
+  final bool podeRemoverAlunos;
+  const _AlunosTurmaSheet({required this.turma, this.podeRemoverAlunos = false});
 
   @override
   Widget build(BuildContext context) {
@@ -745,11 +749,16 @@ class _AlunosTurmaSheet extends StatelessWidget {
                 .where('turmaId', isEqualTo: turma.id)
                 .snapshots(),
             builder: (context, inscSnap) {
-              final alunoIds = inscSnap.data?.docs
-                      .map((d) =>
-                          (d.data() as Map<String, dynamic>)['alunoId'] as String)
-                      .toList() ??
-                  [];
+              final inscricoes = inscSnap.data?.docs ?? [];
+              final alunoIds = <String>[];
+              final Map<String, DocumentReference> inscRefPorAluno = {};
+              for (final d in inscricoes) {
+                final data = d.data() as Map<String, dynamic>;
+                final alunoId = (data['alunoId'] as String?) ?? '';
+                if (alunoId.isEmpty) continue;
+                alunoIds.add(alunoId);
+                inscRefPorAluno[alunoId] = d.reference;
+              }
               if (alunoIds.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 30),
@@ -776,6 +785,7 @@ class _AlunosTurmaSheet extends StatelessWidget {
                       itemCount: alunos.length,
                       itemBuilder: (_, i) {
                         final data = alunos[i].data() as Map<String, dynamic>;
+                        final alunoId = alunos[i].id;
                         final nome = data['nome'] ?? 'Aluno';
                         final nivel = data['nivel'] ?? 1;
                         final xp = data['xp'] ?? 0;
@@ -811,6 +821,76 @@ class _AlunosTurmaSheet extends StatelessWidget {
                               Text('$xp XP',
                                   style: const TextStyle(color: Colors.grey, fontSize: 11)),
                             ]),
+                            if (podeRemoverAlunos &&
+                                inscRefPorAluno.containsKey(alunoId)) ...[
+                              const SizedBox(width: 10),
+                              TapEffect(
+                                onTap: () async {
+                                  final confirmar = await showDialog<bool>(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20)),
+                                          title: const Text(
+                                              'Remover aluno da turma?'),
+                                          content: Text(
+                                              '"$nome" será removido desta turma.'),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(context, false),
+                                                child: const Text('Cancelar')),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              child: const Text('Remover',
+                                                  style: TextStyle(
+                                                      color: Colors.redAccent)),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                      false;
+                                  if (!confirmar) return;
+
+                                  final db = FirebaseFirestore.instance;
+                                  final batch = db.batch();
+                                  batch.delete(inscRefPorAluno[alunoId]!);
+                                  batch.update(
+                                    db.collection('turmas').doc(turma.id),
+                                    {'totalAlunos': FieldValue.increment(-1)},
+                                  );
+                                  await batch.commit();
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content:
+                                          Text('✅ $nome removido da turma.'),
+                                      backgroundColor: Colors.green,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                    ));
+                                  }
+                                },
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Colors.redAccent,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ]),
                         );
                       },
