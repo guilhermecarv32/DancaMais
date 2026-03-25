@@ -47,7 +47,7 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(dark, context),
+                _buildHeader(dark, context, perfil),
                 _buildTabBar(),
                 Expanded(
                   child: TabBarView(
@@ -67,7 +67,7 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
     );
   }
 
-  Widget _buildHeader(Color dark, BuildContext context) {
+  Widget _buildHeader(Color dark, BuildContext context, PerfilProfessor perfil) {
     final labels = ['Nova Turma', 'Nova Modalidade', 'Novo Nível'];
     final actions = [
       () => _abrirSheet(context, _NovaTurmaSheet()),
@@ -84,12 +84,17 @@ class _TeacherClassesScreenState extends State<TeacherClassesScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Turmas',
-                    style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: dark,
-                        letterSpacing: -1)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('Turmas',
+                        style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            color: dark,
+                            letterSpacing: -1)),
+                  ],
+                ),
                 const Text('Gerencie turmas, modalidades e níveis',
                     style: TextStyle(color: Colors.grey, fontSize: 15)),
               ],
@@ -190,11 +195,19 @@ class _TurmasTab extends StatelessWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
-          itemCount: turmas.length,
-          itemBuilder: (_, i) =>
-              _TurmaCard(turma: turmas[i], perfil: perfil),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BannerSolicitacoes(perfil: perfil),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(25, 15, 25, 120),
+                itemCount: turmas.length,
+                itemBuilder: (_, i) =>
+                    _TurmaCard(turma: turmas[i], perfil: perfil),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -208,6 +221,8 @@ class _TurmaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final temPermissao = perfil.podeEditarModalidade(turma.modalidade);
+
     return TapEffect(
       onTap: () => _mostrarOpcoes(context),
       child: Container(
@@ -256,16 +271,27 @@ class _TurmaCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text('${turma.totalAlunos}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: AppTheme.primary)),
+                            color: temPermissao
+                                ? AppTheme.primary
+                                : Colors.grey[400])),
                     const Text('alunos',
                         style: TextStyle(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
               ],
             ),
+            // Badge de solicitações — linha separada abaixo do header do card
+            if (temPermissao)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: _BadgeSolicitacoesTurma(
+                  turmaId: turma.id,
+                  onTap: () => _abrirSolicitacoes(context),
+                ),
+              ),
             if (turma.horariosDia.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -293,6 +319,15 @@ class _TurmaCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _abrirSolicitacoes(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SolicitacoesTurmaSheet(turma: turma),
     );
   }
 
@@ -1436,6 +1471,372 @@ class _NovaTurmaSheetState extends State<_NovaTurmaSheet> {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BANNER: SOLICITAÇÕES PENDENTES (entre tabbar e lista)
+// ─────────────────────────────────────────────────────────────────
+
+class _BannerSolicitacoes extends StatelessWidget {
+  final PerfilProfessor perfil;
+  const _BannerSolicitacoes({required this.perfil});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('turmas').snapshots(),
+      builder: (context, turmasSnap) {
+        final turmaIds = (turmasSnap.data?.docs ?? [])
+            .where((d) => perfil.podeEditarModalidade(
+                (d.data() as Map<String, dynamic>)['modalidade'] ?? ''))
+            .map((d) => d.id)
+            .toList();
+
+        if (turmaIds.isEmpty) return const SizedBox.shrink();
+
+        return FutureBuilder<int>(
+          future: _contarTotal(turmaIds),
+          builder: (context, snap) {
+            final total = snap.data ?? 0;
+            if (total == 0) return const SizedBox.shrink();
+
+            return Container(
+              margin: const EdgeInsets.fromLTRB(25, 12, 25, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 28, height: 28,
+                  decoration: const BoxDecoration(
+                      color: Colors.orange, shape: BoxShape.circle),
+                  child: const Center(
+                    child: Text('!',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    total == 1
+                        ? 'Você tem 1 solicitação de entrada pendente.'
+                        : 'Você tem $total solicitações de entrada pendentes.',
+                    style: TextStyle(
+                        color: Colors.orange[800],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<int> _contarTotal(List<String> turmaIds) async {
+    int total = 0;
+    for (final id in turmaIds) {
+      final snap = await FirebaseFirestore.instance
+          .collection('solicitacoes')
+          .doc(id)
+          .collection('pendentes')
+          .get();
+      total += snap.docs.length;
+    }
+    return total;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BADGE: SOLICITAÇÕES GLOBAL (no header)
+// ─────────────────────────────────────────────────────────────────
+
+class _BadgeSolicitacoesGlobal extends StatelessWidget {
+  final PerfilProfessor perfil;
+  const _BadgeSolicitacoesGlobal({required this.perfil});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('turmas').snapshots(),
+      builder: (context, turmasSnap) {
+        final turmaIds = (turmasSnap.data?.docs ?? [])
+            .where((d) => perfil.podeEditarModalidade(
+                (d.data() as Map<String, dynamic>)['modalidade'] ?? ''))
+            .map((d) => d.id)
+            .toList();
+
+        if (turmaIds.isEmpty) return const SizedBox.shrink();
+
+        return FutureBuilder<int>(
+          future: _contarTotal(turmaIds),
+          builder: (context, snap) {
+            final total = snap.data ?? 0;
+            if (total == 0) return const SizedBox.shrink();
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Text('!',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13)),
+                const SizedBox(width: 3),
+                Text('$total',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12)),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<int> _contarTotal(List<String> turmaIds) async {
+    int total = 0;
+    for (final id in turmaIds) {
+      final snap = await FirebaseFirestore.instance
+          .collection('solicitacoes')
+          .doc(id)
+          .collection('pendentes')
+          .get();
+      total += snap.docs.length;
+    }
+    return total;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// BADGE: SOLICITAÇÕES NO CARD DA TURMA
+// ─────────────────────────────────────────────────────────────────
+
+class _BadgeSolicitacoesTurma extends StatelessWidget {
+  final String turmaId;
+  final VoidCallback onTap;
+  const _BadgeSolicitacoesTurma(
+      {required this.turmaId, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('solicitacoes')
+          .doc(turmaId)
+          .collection('pendentes')
+          .snapshots(),
+      builder: (context, snap) {
+        final total = snap.data?.docs.length ?? 0;
+        if (total == 0) return const SizedBox.shrink();
+        return TapEffect(
+          onTap: onTap,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(20)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.person_add_rounded,
+                  size: 12, color: Colors.white),
+              const SizedBox(width: 4),
+              Text(
+                  '$total solicitaç${total == 1 ? 'ão' : 'ões'}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SHEET: SOLICITAÇÕES DE ENTRADA NA TURMA
+// ─────────────────────────────────────────────────────────────────
+
+class _SolicitacoesTurmaSheet extends StatelessWidget {
+  final TurmaModel turma;
+  const _SolicitacoesTurmaSheet({required this.turma});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          Text('Solicitações — ${turma.nome}',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: AppTheme.secondary)),
+          Text('${turma.modalidade} · ${turma.nivel}',
+              style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('solicitacoes')
+                .doc(turma.id)
+                .collection('pendentes')
+                .snapshots(),
+            builder: (context, snap) {
+              final pendentes = snap.data?.docs ?? [];
+              if (pendentes.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(
+                    child: Text('Nenhuma solicitação pendente.',
+                        style: TextStyle(color: Colors.grey[400],
+                            fontWeight: FontWeight.w500)),
+                  ),
+                );
+              }
+              return Column(
+                children: pendentes.map((sol) {
+                  final data = sol.data() as Map<String, dynamic>;
+                  final nomeAluno = data['nomeAluno'] ?? 'Aluno';
+                  final funcao = data['funcao'] as String?;
+                  final alunoId = data['alunoId'] as String? ?? sol.id;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppTheme.primary.withOpacity(0.12),
+                        child: Text(
+                            nomeAluno.isNotEmpty ? nomeAluno[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(nomeAluno,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: AppTheme.secondary)),
+                            if (funcao != null)
+                              Row(children: [
+                                const Icon(Icons.label_outline_rounded,
+                                    size: 12, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(funcao,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey)),
+                              ]),
+                          ],
+                        ),
+                      ),
+                      TapEffect(
+                        onTap: () => _responder(context, sol.id, alunoId, funcao, false, nomeAluno),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.close_rounded,
+                              color: Colors.redAccent, size: 18),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TapEffect(
+                        onTap: () => _responder(context, sol.id, alunoId, funcao, true, nomeAluno),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.check_rounded,
+                              color: Colors.green, size: 18),
+                        ),
+                      ),
+                    ]),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _responder(BuildContext context, String solId, String alunoId,
+      String? funcao, bool aprovar, String nomeAluno) async {
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+
+    if (aprovar) {
+      batch.set(db.collection('inscricoes').doc(), {
+        'alunoId': alunoId,
+        'turmaId': turma.id,
+        'funcao': funcao,
+        'dataInscricao': FieldValue.serverTimestamp(),
+      });
+      batch.update(db.collection('turmas').doc(turma.id),
+          {'totalAlunos': FieldValue.increment(1)});
+    }
+
+    batch.delete(db
+        .collection('solicitacoes')
+        .doc(turma.id)
+        .collection('pendentes')
+        .doc(solId));
+
+    await batch.commit();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(aprovar
+            ? '✅ $nomeAluno adicionado à turma!'
+            : '❌ Solicitação recusada.'),
+        backgroundColor: aprovar ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
   }
 }
 
