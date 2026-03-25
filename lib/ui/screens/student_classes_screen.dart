@@ -211,36 +211,45 @@ class _TurmaCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(turma.nome,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                             color: AppTheme.secondary)),
                     const SizedBox(height: 3),
-                    Row(children: [
-                      _Tag(turma.modalidade, Colors.grey),
-                      const SizedBox(width: 6),
-                      _Tag(turma.nivel, AppTheme.primary),
-                      if (funcao != null) ...[
-                        const SizedBox(width: 6),
-                        _Tag(funcao!, AppTheme.secondary),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _Tag(turma.modalidade, Colors.grey),
+                        _Tag(turma.nivel, AppTheme.primary),
+                        if (funcao != null) _Tag(funcao!, AppTheme.secondary),
                       ],
-                    ]),
+                    ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('${turma.totalAlunos}',
+              SizedBox(
+                width: 46,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${turma.totalAlunos}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                           color: inscrita
                               ? AppTheme.primary
-                              : Colors.grey[400])),
-                  const Text('alunos',
-                      style: TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
+                              : Colors.grey[400]),
+                    ),
+                    const Text('alunos',
+                        style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
               ),
             ]),
             if (!inscrita) ...[
@@ -358,7 +367,7 @@ class _SolicitacaoSheetState extends State<_SolicitacaoSheet> {
         .doc(widget.uid)
         .get();
     final nomeAluno =
-        (userDoc.data() as Map<String, dynamic>?)?['nome'] ?? '';
+        (userDoc.data() ?? {})['nome'] ?? '';
 
     await FirebaseFirestore.instance
         .collection('solicitacoes')

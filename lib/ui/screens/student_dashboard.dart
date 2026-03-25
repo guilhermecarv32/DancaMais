@@ -8,6 +8,7 @@ import '../../logic/auth_bloc/auth_event.dart';
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
+import 'student_badges_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -22,7 +23,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget build(BuildContext context) {
     final screens = [
       const StudentClassesScreen(),
-      const _ConquistasScreen(),
+      const StudentConquistasScreen(),
       const _HomeScreen(),
       const _RankingScreen(),
       const _PerfilScreen(),
@@ -554,22 +555,6 @@ class _ConquistaCard extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────
-// TELAS PLACEHOLDER
-// ─────────────────────────────────────────────────────────────────
-
-class _BibliotecaScreen extends StatelessWidget {
-  const _BibliotecaScreen();
-  @override
-  Widget build(BuildContext context) => _Placeholder(icon: Icons.auto_stories_rounded, label: 'Meus Passos');
-}
-
-class _ConquistasScreen extends StatelessWidget {
-  const _ConquistasScreen();
-  @override
-  Widget build(BuildContext context) => _Placeholder(icon: Icons.workspace_premium_rounded, label: 'Conquistas');
 }
 
 class _RankingScreen extends StatelessWidget {
