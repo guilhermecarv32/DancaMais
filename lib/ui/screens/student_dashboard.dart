@@ -139,6 +139,28 @@ class _StudentDashboardState extends State<StudentDashboard> {
 class _HomeScreen extends StatelessWidget {
   const _HomeScreen();
 
+  Future<bool> _confirmarLogout(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Sair da conta?'),
+            content: const Text('Você tem certeza que deseja sair?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sair'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -193,7 +215,13 @@ class _HomeScreen extends StatelessWidget {
                 ),
               ),
               TapEffect(
-                onTap: () => context.read<AuthBloc>().add(LogoutRequested()),
+                onTap: () async {
+                  final ok = await _confirmarLogout(context);
+                  if (!ok) return;
+                  if (context.mounted) {
+                    context.read<AuthBloc>().add(LogoutRequested());
+                  }
+                },
                 child: Container(
                   width: 38, height: 38,
                   decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(12)),

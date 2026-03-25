@@ -486,6 +486,28 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
+  Future<bool> _confirmarLogout(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Sair da conta?'),
+            content: const Text('Você tem certeza que deseja sair?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sair'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Widget _buildSidebarHeader(String name, Color primary, Color dark) {
     return SafeArea(
       bottom: false,
@@ -515,7 +537,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             ),
           ),
           IconButton(
-            onPressed: () => context.read<AuthBloc>().add(LogoutRequested()),
+            onPressed: () async {
+              final ok = await _confirmarLogout(context);
+              if (!ok) return;
+              if (context.mounted) {
+                context.read<AuthBloc>().add(LogoutRequested());
+              }
+            },
             icon: Icon(Icons.logout_rounded, color: Colors.grey[400]),
           ),
         ]),
