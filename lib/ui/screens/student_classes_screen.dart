@@ -831,7 +831,7 @@ class _PassoTab extends StatelessWidget {
                     child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
                       SizedBox(width: 8),
-                      Text('Você já marcou como aprendido!',
+                      Text('Você já aprendeu este passo!',
                           style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
                     ]),
                   );

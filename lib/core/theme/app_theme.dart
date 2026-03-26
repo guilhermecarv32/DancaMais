@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primary = Color(0xFFF05A40);
-  static const Color secondary = Color(0xFF6C2E21);
-  static const Color accent = Color(0xFFF8B6A8);
+  static const Color primary = Color(0xFFF05A40); // Cor principal da escola
+  static const Color secondary = Color(0xFF9B675D); // Cor secundaria da escola (escura)
+  static const Color third = Color(0xFF6241F0); // Cor terciaria da escola
+  static const Color accent = Color(0xFFF8B6A8); // Variação da cor principal da escola
+  static const Color detail = Color(0xFF88D41C); // Cor de destaque que orne com a escola
 
   static const Color background = Colors.white;
   static const Color surface = Color(0xFFF5F5F5);

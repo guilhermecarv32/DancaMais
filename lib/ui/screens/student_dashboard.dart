@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -172,48 +174,222 @@ class _HomeScreen extends StatelessWidget {
       builder: (context, userSnap) {
         final userData = userSnap.data?.data() as Map<String, dynamic>? ?? {};
         final nome = (userData['nome'] ?? '').toString().trim().split(' ').first;
-        final nivel = userData['nivel'] ?? 1;
-        final xp = userData['xp'] ?? 0;
+        final nivel = (userData['nivel'] as num?)?.toInt() ?? 1;
+        final xp = (userData['xp'] as num?)?.toInt() ?? 0;
         final xpNivel = (100 * nivel * 1.5).round();
-        final progresso = (xp / xpNivel).clamp(0.0, 1.0);
+        final progresso = xpNivel > 0 ? (xp / xpNivel).clamp(0.0, 1.0) : 0.0;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 150),
           children: [
             _buildHeader(context, nome, nivel, xp, xpNivel, progresso),
+            const SizedBox(height: 2),
+            _buildAgenda(uid),
             const SizedBox(height: 24),
             _buildPassosSemana(uid),
             const SizedBox(height: 24),
             _buildConquistasRecentes(uid),
-            const SizedBox(height: 24),
-            _buildAgenda(uid),
           ],
         );
       },
     );
   }
 
-  Widget _buildHeader(BuildContext context, String nome, int nivel, int xp, int xpNivel, double progresso) {
+  Widget _buildHeader(
+    BuildContext context,
+    String nome,
+    int nivel,
+    int xp,
+    int xpNivel,
+    double progresso,
+  ) {
     final now = DateTime.now();
     final meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
     final dias = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
     final dataStr = '${dias[now.weekday - 1]}, ${now.day} de ${meses[now.month - 1]}';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(25, 25, 25, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(25, 30, 25, 20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: 5,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Olá, $nome!',
-                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.secondary, letterSpacing: -0.5)),
-                    Text(dataStr, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                    Text(
+                      'Olá, $nome!',
+                      style: const TextStyle(
+                        color: AppTheme.secondary,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today_rounded,
+                            size: 12, color: Colors.grey[400]),
+                        const SizedBox(width: 5),
+                        Text(dataStr,
+                            style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Seu progresso',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: '$xp',
+                                    style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' / $xpNivel XP',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.star_rounded,
+                                    size: 12, color: Colors.amber[700]),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Nível $nivel',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final fillW = constraints.maxWidth * progresso;
+                                  return Container(
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primary.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 450),
+                                        curve: Curves.easeOutCubic,
+                                        width: fillW,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              Color(0xFFFFC98A),
+                                              AppTheme.primary,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Nível ${nivel + 1}',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Icon(Icons.star_rounded,
+                                    size: 12, color: Colors.amber[700]),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    ),
                   ],
                 ),
               ),
@@ -226,66 +402,18 @@ class _HomeScreen extends StatelessWidget {
                   }
                 },
                 child: Container(
-                  width: 38, height: 38,
-                  decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.logout_rounded, size: 18, color: Colors.grey),
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.logout_rounded, color: Colors.grey[500], size: 20),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Nível + barra de progresso integrados no header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(18)),
-            child: Row(
-              children: [
-                Container(
-                  width: 46, height: 46,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Text('$nivel',
-                        style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900, fontSize: 20)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Nível atual',
-                              style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500)),
-                          Text('$xp / $xpNivel XP',
-                              style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progresso,
-                          minHeight: 7,
-                          backgroundColor: AppTheme.primary.withOpacity(0.12),
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('${((1 - progresso) * xpNivel).round()} XP para o nível ${nivel + 1}',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 10)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -301,47 +429,33 @@ class _HomeScreen extends StatelessWidget {
           children: [
             _buildSectionTitle('Passo da Semana'),
             const SizedBox(height: 12),
-            ...inscricoes.map((insc) {
-              final data = insc.data() as Map<String, dynamic>;
-              final turmaId = data['turmaId'] as String? ?? '';
-              final funcao = data['funcao'] as String?;
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('turmas').doc(turmaId).snapshots(),
-                builder: (context, turmaSnap) {
-                  if (!turmaSnap.hasData) return const SizedBox.shrink();
-                  final turma = TurmaModel.fromFirestore(turmaSnap.data!);
-                  return _PassoSemanaCard(turma: turma, funcao: funcao, uid: uid);
-                },
-              );
-            }),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildConquistasRecentes(String uid) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('usuarios').doc(uid).collection('conquistas')
-          .orderBy('dataConquista', descending: true).limit(3).snapshots(),
-      builder: (context, snap) {
-        final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Conquistas Recentes'),
-            const SizedBox(height: 12),
             SizedBox(
-              height: 110,
+              height: 160,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(left: 25, right: 10),
-                itemCount: docs.length,
+                padding: const EdgeInsets.symmetric(horizontal: 25),
+                itemCount: inscricoes.length,
                 itemBuilder: (_, i) {
-                  final data = docs[i].data() as Map<String, dynamic>;
-                  return _ConquistaCard(icone: data['icone'] ?? '🏅', nome: data['nome'] ?? '', xp: data['xpRecompensa'] ?? 0);
+                  final data = inscricoes[i].data() as Map<String, dynamic>;
+                  final turmaId = data['turmaId'] as String? ?? '';
+                  final funcao = data['funcao'] as String?;
+                  return StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('turmas')
+                        .doc(turmaId)
+                        .snapshots(),
+                    builder: (context, turmaSnap) {
+                      if (!turmaSnap.hasData) return const SizedBox.shrink();
+                      final turma = TurmaModel.fromFirestore(turmaSnap.data!);
+                      return _PassoSemanaCard(
+                        turma: turma,
+                        funcao: funcao,
+                        uid: uid,
+                        compact: true,
+                        compactUseAccent: i.isEven,
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -351,67 +465,84 @@ class _HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAgenda(String uid) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('inscricoes').where('alunoId', isEqualTo: uid).snapshots(),
-      builder: (context, inscSnap) {
-        final turmaIds = inscSnap.data?.docs
-                .map((d) => (d.data() as Map<String, dynamic>)['turmaId'] as String?)
-                .whereType<String>().toList() ?? [];
-        if (turmaIds.isEmpty) return const SizedBox.shrink();
+  Widget _buildConquistasRecentes(String uid) {
+    final userRef = FirebaseFirestore.instance.collection('usuarios').doc(uid);
+    final subRef = userRef.collection('conquistas');
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: userRef.snapshots(),
+      builder: (context, userSnap) {
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('turmas')
-              .where(FieldPath.documentId, whereIn: turmaIds).snapshots(),
-          builder: (context, turmasSnap) {
-            final turmas = turmasSnap.data?.docs
-                    .map((d) => TurmaModel.fromFirestore(d))
-                    .where((t) => t.horariosDia.isNotEmpty).toList() ?? [];
-            if (turmas.isEmpty) return const SizedBox.shrink();
+          stream: subRef.snapshots(),
+          builder: (context, subSnap) {
+            final porId = <String, Map<String, dynamic>>{};
+
+            final userData = userSnap.data?.data() as Map<String, dynamic>? ?? {};
+            final conquistasArray = (userData['conquistas'] as List?) ?? const [];
+            for (final item in conquistasArray) {
+              if (item is! Map) continue;
+              final m = Map<String, dynamic>.from(item);
+              final id = (m['id'] as String?) ?? '';
+              if (id.isEmpty) continue;
+              porId[id] = m;
+            }
+
+            final docs = subSnap.data?.docs ?? [];
+            for (final d in docs) {
+              final m = d.data() as Map<String, dynamic>;
+              porId[d.id] = {...m, 'id': d.id};
+            }
+
+            DateTime _parseData(Map<String, dynamic> m) {
+              final raw = m['dataObtida'] ?? m['dataConquista'] ?? m['data'];
+              if (raw is Timestamp) return raw.toDate();
+              if (raw is String) return DateTime.tryParse(raw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return DateTime.fromMillisecondsSinceEpoch(0);
+            }
+
+            final lista = porId.values.toList()
+              ..sort((a, b) => _parseData(b).compareTo(_parseData(a)));
+
+            final ultimas = lista.take(3).toList();
+            if (ultimas.isEmpty) return const SizedBox.shrink();
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionTitle('Minha Agenda'),
+                _buildSectionTitle('Últimas conquistas'),
                 const SizedBox(height: 12),
-                ...turmas.map((turma) => Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 0, 25, 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.groups_rounded, color: AppTheme.primary, size: 20),
+                SizedBox(
+                  height: 92,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.only(left: 25, right: 10),
+                    itemCount: ultimas.length,
+                    itemBuilder: (_, i) {
+                      final data = ultimas[i];
+                      const palette = <Color>[
+                        AppTheme.third,
+                        AppTheme.primary,
+                        AppTheme.secondary,
+                        AppTheme.accent,
+                      ];
+                      final base = palette[i % palette.length];
+                      return TapEffect(
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => _ConquistaDetalhesSheet(conquista: data),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(turma.nome, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.secondary)),
-                          Text('${turma.modalidade} · ${turma.nivel}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        ])),
-                      ]),
-                      const SizedBox(height: 10),
-                      const Divider(height: 1, color: Color(0xFFF0F0F0)),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8, runSpacing: 6,
-                        children: turma.horariosDia.map((h) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(10)),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Text(h.dia, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppTheme.secondary)),
-                            const SizedBox(width: 6),
-                            Text(h.horario, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          ]),
-                        )).toList(),
-                      ),
-                    ]),
+                        child: _ConquistaBadge(
+                          icone: (data['icone'] as String?) ?? '🏅',
+                          xp: (data['xpRecompensa'] as num?)?.toInt() ?? 0,
+                          bg: base.withOpacity(0.16),
+                          hexColor: base,
+                        ),
+                      );
+                    },
                   ),
-                )),
+                ),
               ],
             );
           },
@@ -420,10 +551,535 @@ class _HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildAgenda(String uid) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Minha Agenda'),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: AlunoAgendaStackedScroll(uid: uid),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionTitle(String title) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 25),
     child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.secondary)),
   );
+}
+
+class _ConquistaBadge extends StatelessWidget {
+  final String icone;
+  final int xp;
+  final Color bg;
+  final Color hexColor;
+
+  const _ConquistaBadge({
+    required this.icone,
+    required this.xp,
+    required this.bg,
+    required this.hexColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 86,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Align(
+            alignment: Alignment.center,
+            child: ClipPath(
+              clipper: _HexClipper(),
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      hexColor.withOpacity(0.95),
+                      hexColor.withOpacity(0.75),
+                    ],
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    icone,
+                    style: const TextStyle(fontSize: 26),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: -6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                '+$xp',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HexClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    return Path()
+      ..moveTo(w * 0.50, 0)
+      ..lineTo(w, h * 0.25)
+      ..lineTo(w, h * 0.75)
+      ..lineTo(w * 0.50, h)
+      ..lineTo(0, h * 0.75)
+      ..lineTo(0, h * 0.25)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _ConquistaDetalhesSheet extends StatelessWidget {
+  final Map<String, dynamic> conquista;
+  const _ConquistaDetalhesSheet({required this.conquista});
+
+  DateTime? _parseData() {
+    final raw = conquista['dataObtida'] ?? conquista['dataConquista'] ?? conquista['data'];
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nome = (conquista['nome'] as String?) ?? '';
+    final icone = (conquista['icone'] as String?) ?? '🏅';
+    final xp = (conquista['xpRecompensa'] as num?)?.toInt() ?? 0;
+    final desc = (conquista['descricao'] as String?) ??
+        (conquista['descricaoLonga'] as String?) ??
+        '';
+    final data = _parseData();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(child: Text(icone, style: const TextStyle(fontSize: 28))),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nome.isEmpty ? 'Conquista' : nome,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          color: AppTheme.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withOpacity(0.10),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              '+$xp XP',
+                              style: const TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          if (data != null) ...[
+                            const SizedBox(width: 10),
+                            Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey[400]),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
+                              style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ]
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (desc.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                desc.trim(),
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AlunoAgendaStackedScroll extends StatefulWidget {
+  final String uid;
+  const AlunoAgendaStackedScroll({super.key, required this.uid});
+
+  @override
+  State<AlunoAgendaStackedScroll> createState() => _AlunoAgendaStackedScrollState();
+}
+
+class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
+  final ScrollController _scrollController = ScrollController();
+  final List<StreamSubscription> _subs = [];
+  Set<String> _turmaIds = <String>{};
+  List<_AulaHojeAluno> _aulas = [];
+
+  static const double _heroHeight = 110.0;
+  static const double _subHeight = 64.0;
+  static const double _peekOffset = 20.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+
+    _subs.add(
+      FirebaseFirestore.instance
+          .collection('inscricoes')
+          .where('alunoId', isEqualTo: widget.uid)
+          .snapshots()
+          .listen((snap) {
+        final ids = snap.docs
+            .map((d) => (d.data()['turmaId'] as String?) ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet();
+        _turmaIds = ids;
+        _rebuildAulasFromTurmasCache();
+      }),
+    );
+
+    _subs.add(
+      FirebaseFirestore.instance.collection('turmas').snapshots().listen((snap) {
+        final turmas = snap.docs.map((d) => TurmaModel.fromFirestore(d)).toList();
+        _turmasCache = turmas;
+        _rebuildAulasFromTurmasCache();
+      }),
+    );
+  }
+
+  List<TurmaModel> _turmasCache = [];
+
+  void _onScroll() {
+    if (mounted) setState(() {});
+  }
+
+  void _rebuildAulasFromTurmasCache() {
+    if (!mounted) return;
+    final filtradas = _turmasCache.where((t) => _turmaIds.contains(t.id)).toList();
+    setState(() => _aulas = _extrairAulasHoje(filtradas));
+  }
+
+  List<_AulaHojeAluno> _extrairAulasHoje(List<TurmaModel> turmas) {
+    const diasPt = [
+      'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
+    ];
+    final diaHoje = diasPt[DateTime.now().weekday - 1];
+    final aulas = <_AulaHojeAluno>[];
+    for (final turma in turmas) {
+      for (final h in turma.horariosDia) {
+        if (h.dia == diaHoje) {
+          aulas.add(_AulaHojeAluno(turma: turma, horario: h.horario));
+        }
+      }
+    }
+    aulas.sort((a, b) => _horaSort(a.horario).compareTo(_horaSort(b.horario)));
+    return aulas;
+  }
+
+  String _horaSort(String horario) {
+    final m = RegExp(r'(\d{1,2}):?(\d{2})').firstMatch(horario);
+    if (m == null) return '99:99';
+    final h = int.tryParse(m.group(1) ?? '') ?? 99;
+    final min = int.tryParse(m.group(2) ?? '') ?? 99;
+    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+  }
+
+  double _getCardTop(int index) {
+    double top = 0;
+    for (int i = 0; i < index; i++) {
+      top += (i == 0 ? _heroHeight : _subHeight) + _peekOffset;
+    }
+    return top;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    for (final s in _subs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_aulas.isEmpty) {
+      return Container(
+        height: 80,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+        ),
+        child: Row(children: [
+          const Text('🎉', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: 12),
+          Text(
+            'Nenhuma aula hoje!',
+            style: TextStyle(
+              color: AppTheme.secondary.withOpacity(0.5),
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        ]),
+      );
+    }
+
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final totalStack =
+        _getCardTop(_aulas.length - 1) + (_aulas.length == 1 ? _heroHeight : _subHeight);
+    final visibleHeight = _heroHeight + (_peekOffset * 2) + 32;
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: SizedBox(
+        height: visibleHeight,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const ClampingScrollPhysics(),
+          child: SizedBox(
+            height: totalStack + 20,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (int i = _aulas.length - 1; i >= 0; i--)
+                  _buildStackedCard(i, _aulas[i], scrollOffset),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStackedCard(int index, _AulaHojeAluno aula, double scrollOffset) {
+    final naturalTop = _getCardTop(index);
+    final top = (naturalTop - scrollOffset).clamp(0.0, naturalTop);
+    final depth = (index - (scrollOffset / (_subHeight + _peekOffset))).clamp(0.0, 10.0);
+
+    return Positioned(
+      top: top,
+      left: depth * 7.0,
+      right: depth * 7.0,
+      child: Transform.scale(
+        scale: 1.0 - (depth * 0.025).clamp(0.0, 0.07),
+        alignment: Alignment.topCenter,
+        child: Opacity(
+          opacity: (1.0 - depth * 0.08).clamp(0.75, 1.0),
+          child: index == 0 ? _buildHeroCard(aula) : _buildSubCard(aula),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(_AulaHojeAluno aula) => Container(
+        height: _heroHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+        decoration: BoxDecoration(
+          color: AppTheme.primary,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withOpacity(0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    aula.turma.modalidade.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    aula.turma.nome,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                aula.horario,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildSubCard(_AulaHojeAluno aula) => Container(
+        height: _subHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+            )
+          ],
+          border: Border.all(color: Colors.grey.withOpacity(0.07)),
+        ),
+        child: Row(children: [
+          Text(aula.horario,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: AppTheme.secondary.withOpacity(0.45))),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(aula.turma.nome,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13),
+                    overflow: TextOverflow.ellipsis),
+                Text(aula.turma.modalidade,
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        ]),
+      );
+}
+
+class _AulaHojeAluno {
+  final TurmaModel turma;
+  final String horario;
+  _AulaHojeAluno({required this.turma, required this.horario});
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -434,15 +1090,350 @@ class _PassoSemanaCard extends StatelessWidget {
   final TurmaModel turma;
   final String? funcao;
   final String uid;
-  const _PassoSemanaCard({required this.turma, required this.funcao, required this.uid});
+  final bool compact;
+  final bool compactUseAccent;
+  const _PassoSemanaCard({
+    required this.turma,
+    required this.funcao,
+    required this.uid,
+    this.compact = false,
+    this.compactUseAccent = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final label = funcao != null ? '${turma.modalidade} · $funcao' : turma.modalidade;
+    if (compact) {
+      final passoId = turma.passoSemanaId;
+      final passoNome = turma.passoSemanaNome;
+
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          width: 250,
+          height: 140,
+          child: (passoId == null || passoNome == null)
+              ? Container(
+                  height: 140,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                      )
+                    ],
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.hourglass_empty_rounded, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text(
+                        'Nenhum passo definido.',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      )
+                    ],
+                  ),
+                )
+              : StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('progressoAluno')
+                      .doc('${uid}_$passoId')
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final data =
+                        snap.data?.data() as Map<String, dynamic>? ?? {};
+                    final status = (data['status'] as String?) ?? '';
+                    final dataAprendido = data['dataAprendido'];
+
+                    final isValidado = status == StatusProgresso.validado.name;
+                    final isAprendido = status == StatusProgresso.aprendido.name;
+                    final isPraticado = status == StatusProgresso.emProgresso.name;
+                    final isVisto =
+                        status == StatusProgresso.naoAprendido.name &&
+                            dataAprendido != null;
+
+                    final stage = isValidado || isAprendido
+                        ? 3
+                        : isPraticado
+                            ? 2
+                            : isVisto
+                                ? 1
+                                : 0;
+
+                    final circleValue = stage / 3.0;
+                    final papel = (funcao?.trim().isNotEmpty ?? false)
+                        ? funcao!.trim()
+                        : 'Aluno';
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: compactUseAccent
+                            ? AppTheme.secondary
+                            : AppTheme.third,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                          )
+                        ],
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            left: 12,
+                            top: 10,
+                            child: StreamBuilder<DocumentSnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('movimentacoes')
+                                  .doc(passoId)
+                                  .snapshots(),
+                              builder: (context, movSnap) {
+                                final movData =
+                                    movSnap.data?.data() as Map<String, dynamic>?;
+                                final tipo = (movData?['tipo'] as String?) ?? '';
+                                final isCoreografia = tipo == 'coreografia';
+
+                                return Icon(
+                                  isCoreografia
+                                      ? Icons.directions_run_rounded
+                                      : Icons.directions_walk_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            right: 12,
+                            top: 8,
+                            child: SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircularProgressIndicator(
+                                    value: circleValue,
+                                    strokeWidth: 4,
+                                    backgroundColor:
+                                        Colors.grey.withOpacity(0.35),
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$stage/3',
+                                    style: TextStyle(
+                                      color: stage == 0
+                                          ? Colors.grey[200]
+                                          : Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 12,
+                            right: 12,
+                            top: 34,
+                            bottom: 44,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  passoNome,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  turma.nome,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  turma.modalidade,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  papel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            left: 12,
+                            right: 12,
+                            bottom: 8,
+                            child: SizedBox(
+                              height: 36,
+                              child: TapEffect(
+                                onTap: stage >= 3
+                                    ? null
+                                    : () async {
+                                        if (stage == 0) {
+                                          final docId =
+                                              '${uid}_$passoId';
+                                          final novo = ProgressoAlunoModel(
+                                            id: docId,
+                                            alunoId: uid,
+                                            movimentacaoId: passoId,
+                                            movimentacaoNome: passoNome,
+                                            modalidade: turma.modalidade,
+                                            status:
+                                                StatusProgresso.naoAprendido,
+                                            dataAprendido: DateTime.now(),
+                                            xpGanhoAluno: 0,
+                                            xpGanhoValidacao: 0,
+                                          );
+                                          await FirebaseFirestore.instance
+                                              .collection('progressoAluno')
+                                              .doc(docId)
+                                              .set(novo.toMap());
+                                        } else if (stage == 1) {
+                                          await FirebaseFirestore.instance
+                                              .collection('progressoAluno')
+                                              .doc('${uid}_$passoId')
+                                              .update({
+                                            'status':
+                                                StatusProgresso.emProgresso.name,
+                                            'dataAprendido':
+                                                FieldValue.serverTimestamp(),
+                                            'xpGanhoAluno': 0,
+                                            'xpGanhoValidacao': 0,
+                                          });
+                                        } else if (stage == 2) {
+                                          final movSnap = await FirebaseFirestore
+                                              .instance
+                                              .collection('movimentacoes')
+                                              .doc(passoId)
+                                              .get();
+                                          if (!movSnap.exists) return;
+                                          final mov =
+                                              MovimentacaoModel.fromFirestore(
+                                                  movSnap);
+                                          await GamificationService()
+                                              .registrarAprendizado(
+                                            alunoId: uid,
+                                            movimentacao: mov,
+                                          );
+                                        }
+                                      },
+                                child: Container(
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    color: stage == 0
+                                        ? Colors.white
+                                        : stage == 3
+                                            ? AppTheme.detail
+                                            : stage == 2
+                                                ? AppTheme.primary
+                                                : AppTheme.primary.withOpacity(0.12),
+                                    border: Border.all(
+                                      color: stage == 0
+                                          ? Colors.grey.withOpacity(0.25)
+                                          : stage == 2
+                                              ? AppTheme.primary.withOpacity(0.2)
+                                              : stage == 3
+                                                  ? AppTheme.detail.withOpacity(0.35)
+                                                  : AppTheme.primary.withOpacity(0.15),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        stage == 0
+                                            ? Icons.visibility_outlined
+                                            : stage == 1
+                                                ? Icons.play_arrow_rounded
+                                                : stage == 2
+                                                    ? Icons.emoji_events_rounded
+                                                    : Icons.check_rounded,
+                                        size: 16,
+                                        color: (stage == 2 || stage == 3)
+                                            ? Colors.white
+                                            : AppTheme.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        stage == 0
+                                            ? 'Visto'
+                                            : stage == 1
+                                                ? 'Praticado'
+                                                : stage == 2
+                                                    ? 'Aprender'
+                                                    : 'Aprendido',
+                                        style: TextStyle(
+                                          color: (stage == 2 || stage == 3)
+                                              ? Colors.white
+                                              : AppTheme.primary,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(25, 0, 25, 12),
+      padding: compact
+          ? const EdgeInsets.only(right: 12)
+          : const EdgeInsets.fromLTRB(25, 0, 25, 12),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        width: compact ? 250 : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 12 : 18,
+          vertical: compact ? 8 : 18,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -458,7 +1449,7 @@ class _PassoSemanaCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(turma.nome, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
           ]),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 12),
           if (turma.passoSemanaNome == null)
             Row(children: [
               Icon(Icons.hourglass_empty_rounded, size: 16, color: Colors.grey[400]),
@@ -488,7 +1479,12 @@ class _PassoSemanaCard extends StatelessWidget {
 
 class _BotaoAprendi extends StatelessWidget {
   final String turmaId, passoId, passoNome, uid;
-  const _BotaoAprendi({required this.turmaId, required this.passoId, required this.passoNome, required this.uid});
+  const _BotaoAprendi({
+    required this.turmaId,
+    required this.passoId,
+    required this.passoNome,
+    required this.uid,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -503,32 +1499,58 @@ class _BotaoAprendi extends StatelessWidget {
         final jaAprendeu = status == 'aprendido' || status == 'validado';
         if (jaAprendeu) {
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 7,
+            ),
             decoration: BoxDecoration(
               color: Colors.green.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
             ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.check_rounded, size: 14, color: Colors.green),
-              SizedBox(width: 4),
-              Text('Aprendi!', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              Text(
+                'Aprendi!',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ]),
           );
         }
         return TapEffect(
           onTap: () => _marcarAprendi(context),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 7,
+            ),
             decoration: BoxDecoration(
               color: AppTheme.primary,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                )
+              ],
             ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.emoji_events_rounded, size: 14, color: Colors.white),
-              SizedBox(width: 4),
-              Text('Aprendi!', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              Text(
+                'Aprendi!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ]),
           ),
         );
@@ -557,35 +1579,3 @@ class _BotaoAprendi extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────
 // CARD: CONQUISTA RECENTE
 // ─────────────────────────────────────────────────────────────────
-
-class _ConquistaCard extends StatelessWidget {
-  final String icone, nome;
-  final int xp;
-  const _ConquistaCard({required this.icone, required this.nome, required this.xp});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 130,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(icone, style: const TextStyle(fontSize: 28)),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(nome, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.secondary),
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
-          Row(children: [
-            const Icon(Icons.bolt_rounded, size: 12, color: AppTheme.primary),
-            Text('+$xp XP', style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
-          ]),
-        ]),
-      ]),
-    );
-  }
-}
