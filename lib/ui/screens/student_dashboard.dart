@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
+import 'student_profile_screen.dart';
 import 'student_ranking_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
@@ -28,7 +29,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       const StudentConquistasScreen(),
       const _HomeScreen(),
       const StudentRankingScreen(),
-      const _PerfilScreen(),
+      const StudentProfileScreen(),
     ];
 
     return Scaffold(
@@ -584,31 +585,6 @@ class _ConquistaCard extends StatelessWidget {
             Text('+$xp XP', style: const TextStyle(color: AppTheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
           ]),
         ]),
-      ]),
-    );
-  }
-}
-
-class _PerfilScreen extends StatelessWidget {
-  const _PerfilScreen();
-  @override
-  Widget build(BuildContext context) => _Placeholder(icon: Icons.person_rounded, label: 'Perfil');
-}
-
-class _Placeholder extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _Placeholder({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 48, color: Colors.grey[300]),
-        const SizedBox(height: 12),
-        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('Em breve', style: TextStyle(color: Colors.grey[300], fontSize: 13)),
       ]),
     );
   }
