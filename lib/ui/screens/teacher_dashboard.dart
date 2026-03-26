@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
+import '../../logic/gamification/gamification_service.dart' as gamif;
 import '../../models/models.dart';
 import 'teacher_steps_library_screen.dart';
 import 'teacher_badges_screen.dart';
@@ -580,10 +581,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           Expanded(
             child: Column(children: [
               _buildSmallBentoCard(
-                'Biblioteca',
-                Icons.auto_stories_rounded,
-                primary,
-                () => setState(() => _selectedIndex = 1),
+                'Solicitações',
+                Icons.notifications_active_rounded,
+                Colors.orange[800]!,
+                () => _abrirHubSolicitacoes(context),
               ),
               const SizedBox(height: 8),
               _buildSmallBentoCard(
@@ -596,6 +597,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
         ]),
       );
+
+  void _abrirHubSolicitacoes(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StreamBuilder<PerfilProfessor>(
+        stream: PermissaoService.perfilStream(),
+        builder: (context, snap) {
+          final perfil = snap.data ??
+              PerfilProfessor(isAdmin: false, modalidades: const []);
+          return _SolicitacoesHubSheet(perfil: perfil);
+        },
+      ),
+    );
+  }
 
   Widget _buildBigBentoCard(
       String title, IconData icon, Color color, VoidCallback onTap) {
@@ -822,6 +839,767 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             fontWeight: FontWeight.bold,
             color: dark.withOpacity(0.8)),
       );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// HUB: SOLICITAÇÕES (dashboard)
+// ─────────────────────────────────────────────────────────────────
+
+class _SolicitacoesHubSheet extends StatelessWidget {
+  final PerfilProfessor perfil;
+  const _SolicitacoesHubSheet({required this.perfil});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const Text(
+              'Solicitações',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+                color: AppTheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TapEffect(
+              onTap: () {
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _SelecionarTurmaSheet(
+                    perfil: perfil,
+                    titulo: 'Validar passo da semana',
+                    apenasComPassoSemana: true,
+                    builder: (t) => _ValidarPassoSemanaSheetDash(turma: t),
+                  ),
+                );
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.verified_rounded,
+                        color: Colors.green, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Validar passo da semana',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 15)),
+                        Text(
+                          '+${gamif.XPRecompensa.validadoProfessor} XP (toggle validar/desvalidar)',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            const Divider(height: 8),
+            TapEffect(
+              onTap: () {
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _SelecionarTurmaSheet(
+                    perfil: perfil,
+                    titulo: 'Solicitações de entrada',
+                    apenasComPassoSemana: false,
+                    builder: (t) => _SolicitacoesTurmaSheetDash(turma: t),
+                  ),
+                );
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.person_add_alt_1_rounded,
+                        color: Colors.orange[800], size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Solicitações de entrada em turma',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.orange[900],
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelecionarTurmaSheet extends StatelessWidget {
+  final PerfilProfessor perfil;
+  final String titulo;
+  final bool apenasComPassoSemana;
+  final Widget Function(TurmaModel turma) builder;
+
+  const _SelecionarTurmaSheet({
+    required this.perfil,
+    required this.titulo,
+    required this.apenasComPassoSemana,
+    required this.builder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Text(
+              titulo,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+                color: AppTheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance.collection('turmas').snapshots(),
+              builder: (context, snap) {
+                final docs = snap.data?.docs ?? [];
+                var turmas =
+                    docs.map((d) => TurmaModel.fromFirestore(d)).toList();
+                turmas = turmas
+                    .where((t) =>
+                        perfil.isAdmin || perfil.podeEditarModalidade(t.modalidade))
+                    .toList();
+                if (apenasComPassoSemana) {
+                  turmas = turmas.where((t) => t.passoSemanaId != null).toList();
+                }
+                if (turmas.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'Nenhuma turma disponível.',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return SizedBox(
+                  height: 360,
+                  child: ListView.builder(
+                    itemCount: turmas.length,
+                    itemBuilder: (_, i) {
+                      final t = turmas[i];
+                      return TapEffect(
+                        onTap: () {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => builder(t),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.nome,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: AppTheme.secondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${t.modalidade} · ${t.nivel}',
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: Colors.grey),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SHEET: SOLICITAÇÕES DE ENTRADA (dashboard)
+// ─────────────────────────────────────────────────────────────────
+
+class _SolicitacoesTurmaSheetDash extends StatelessWidget {
+  final TurmaModel turma;
+  const _SolicitacoesTurmaSheetDash({required this.turma});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Text('Solicitações — ${turma.nome}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: AppTheme.secondary)),
+            Text('${turma.modalidade} · ${turma.nivel}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('solicitacoes')
+                  .doc(turma.id)
+                  .collection('pendentes')
+                  .snapshots(),
+              builder: (context, snap) {
+                final pendentes = snap.data?.docs ?? [];
+                if (pendentes.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text('Nenhuma solicitação pendente.',
+                          style: TextStyle(
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w500)),
+                    ),
+                  );
+                }
+                return Column(
+                  children: pendentes.map((sol) {
+                    final data = sol.data() as Map<String, dynamic>;
+                    final nomeAluno = data['nomeAluno'] ?? 'Aluno';
+                    final funcao = data['funcao'] as String?;
+                    final alunoId = data['alunoId'] as String? ?? sol.id;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Row(children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppTheme.primary.withOpacity(0.12),
+                          child: Text(
+                              nomeAluno.isNotEmpty
+                                  ? nomeAluno[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(nomeAluno,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: AppTheme.secondary)),
+                              if (funcao != null)
+                                Row(children: [
+                                  const Icon(Icons.label_outline_rounded,
+                                      size: 12, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text(funcao,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey)),
+                                ]),
+                            ],
+                          ),
+                        ),
+                        TapEffect(
+                          onTap: () => _responder(
+                              context, sol.id, alunoId, funcao, false, nomeAluno),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.close_rounded,
+                                color: Colors.redAccent, size: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TapEffect(
+                          onTap: () => _responder(
+                              context, sol.id, alunoId, funcao, true, nomeAluno),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.check_rounded,
+                                color: Colors.green, size: 18),
+                          ),
+                        ),
+                      ]),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _responder(BuildContext context, String solId, String alunoId,
+      String? funcao, bool aprovar, String nomeAluno) async {
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+
+    if (aprovar) {
+      batch.set(db.collection('inscricoes').doc(), {
+        'alunoId': alunoId,
+        'turmaId': turma.id,
+        'funcao': funcao,
+        'dataInscricao': FieldValue.serverTimestamp(),
+      });
+      batch.update(db.collection('turmas').doc(turma.id),
+          {'totalAlunos': FieldValue.increment(1)});
+    }
+
+    batch.delete(db
+        .collection('solicitacoes')
+        .doc(turma.id)
+        .collection('pendentes')
+        .doc(solId));
+
+    await batch.commit();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(aprovar
+            ? '✅ $nomeAluno adicionado à turma!'
+            : '❌ Solicitação recusada.'),
+        backgroundColor: aprovar ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SHEET: VALIDAR PASSO DA SEMANA (dashboard)
+// ─────────────────────────────────────────────────────────────────
+
+class _ValidarPassoSemanaSheetDash extends StatelessWidget {
+  final TurmaModel turma;
+  const _ValidarPassoSemanaSheetDash({required this.turma});
+
+  @override
+  Widget build(BuildContext context) {
+    final passoId = turma.passoSemanaId;
+    if (passoId == null) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: const SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Nenhum passo definido para esta turma.'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final professorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Text('Validar — ${turma.nome}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: AppTheme.secondary)),
+            Text(
+              '${turma.passoSemanaNome ?? '—'} · +${gamif.XPRecompensa.validadoProfessor} XP',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('inscricoes')
+                  .where('turmaId', isEqualTo: turma.id)
+                  .snapshots(),
+              builder: (context, inscSnap) {
+                final inscricoes = inscSnap.data?.docs ?? [];
+                final alunoIds = <String>[];
+                for (final d in inscricoes) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final alunoId = (data['alunoId'] as String?) ?? '';
+                  if (alunoId.isEmpty) continue;
+                  alunoIds.add(alunoId);
+                }
+                if (alunoIds.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'Nenhum aluno nesta turma.',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('usuarios')
+                      .where(FieldPath.documentId, whereIn: alunoIds)
+                      .snapshots(),
+                  builder: (context, alunosSnap) {
+                    final alunos = alunosSnap.data?.docs ?? [];
+                    final porId = <String, Map<String, dynamic>>{};
+                    for (final d in alunos) {
+                      porId[d.id] = (d.data() as Map<String, dynamic>);
+                    }
+
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('progressoAluno')
+                          .where('movimentacaoId', isEqualTo: passoId)
+                          .where('status', whereIn: [
+                            StatusProgresso.aprendido.name,
+                            StatusProgresso.validado.name,
+                          ])
+                          .where('alunoId', whereIn: alunoIds)
+                          .snapshots(),
+                      builder: (context, progressoSnap) {
+                        final itens = progressoSnap.data?.docs ?? [];
+                        if (itens.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 28),
+                            child: Center(
+                              child: Text(
+                                'Nada para validar aqui ainda.',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return SizedBox(
+                          height: 360,
+                          child: ListView.builder(
+                            itemCount: itens.length,
+                            itemBuilder: (_, i) {
+                              final p = itens[i].data() as Map<String, dynamic>;
+                              final alunoId = (p['alunoId'] as String?) ?? '';
+                              final status = (p['status'] as String?) ?? '';
+                              final isValidado =
+                                  status == StatusProgresso.validado.name;
+
+                              final aluno =
+                                  porId[alunoId] ?? const <String, dynamic>{};
+                              final nome = (aluno['nome'] as String?) ?? 'Aluno';
+
+                              return TapEffect(
+                                onTap: null,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isValidado
+                                        ? Colors.green.withOpacity(0.08)
+                                        : AppTheme.surface,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isValidado
+                                          ? Colors.green.withOpacity(0.25)
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                  child: Row(children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor:
+                                          AppTheme.primary.withOpacity(0.12),
+                                      child: Text(
+                                        nome.isNotEmpty
+                                            ? nome[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: AppTheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            nome,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                              color: AppTheme.secondary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isValidado ? 'Validado' : 'Pendente',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: isValidado
+                                                  ? Colors.green[700]
+                                                  : Colors.orange[800],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    TapEffect(
+                                      onTap: () async {
+                                        if (professorId.isEmpty ||
+                                            alunoId.isEmpty) return;
+                                        if (isValidado) {
+                                          await gamif.GamificationService()
+                                              .desvalidarAprendizado(
+                                            professorId: professorId,
+                                            alunoId: alunoId,
+                                            movimentacaoId: passoId,
+                                          );
+                                        } else {
+                                          await gamif.GamificationService()
+                                              .validarAprendizado(
+                                            professorId: professorId,
+                                            alunoId: alunoId,
+                                            movimentacaoId: passoId,
+                                            feedbackMovimentacaoNome:
+                                                turma.passoSemanaNome,
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: (isValidado
+                                                  ? Colors.red
+                                                  : Colors.green)
+                                              .withOpacity(0.10),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: (isValidado
+                                                    ? Colors.red
+                                                    : Colors.green)
+                                                .withOpacity(0.25),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isValidado
+                                                  ? Icons.undo_rounded
+                                                  : Icons.verified_rounded,
+                                              size: 16,
+                                              color: isValidado
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              isValidado
+                                                  ? 'Desvalidar'
+                                                  : 'Validar',
+                                              style: TextStyle(
+                                                color: isValidado
+                                                    ? Colors.red
+                                                    : Colors.green,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Botão animado do passo da semana ──────────────────────────────
