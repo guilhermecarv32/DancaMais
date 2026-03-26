@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
+import 'student_ranking_screen.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -25,7 +26,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       const StudentClassesScreen(),
       const StudentConquistasScreen(),
       const _HomeScreen(),
-      const _RankingScreen(),
+      const StudentRankingScreen(),
       const _PerfilScreen(),
     ];
 
@@ -583,12 +584,6 @@ class _ConquistaCard extends StatelessWidget {
       ]),
     );
   }
-}
-
-class _RankingScreen extends StatelessWidget {
-  const _RankingScreen();
-  @override
-  Widget build(BuildContext context) => _Placeholder(icon: Icons.leaderboard_rounded, label: 'Ranking');
 }
 
 class _PerfilScreen extends StatelessWidget {
