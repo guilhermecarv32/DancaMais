@@ -461,7 +461,6 @@ class _ConcederConquistaSheetState
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final professorId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Container(
       padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
@@ -560,7 +559,7 @@ class _ConcederConquistaSheetState
                           ),
                         ),
                         child: Text(
-                          '${t.modalidade} · ${t.nivel}',
+                          '${t.nome} · ${t.modalidade}',
                           style: TextStyle(
                               color: sel
                                   ? AppTheme.primary
