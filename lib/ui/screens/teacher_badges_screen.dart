@@ -419,6 +419,17 @@ class _ConcederConquistaSheetState
   String? _alunoSelecionadoNome;
   bool _concedendo = false;
 
+  bool _jaPossuiConquista(Map<String, dynamic> usuarioData) {
+    final lista = (usuarioData['conquistas'] as List?) ?? const [];
+    for (final item in lista) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      final id = (m['id'] as String?) ?? '';
+      if (id.isNotEmpty && id == widget.conquista.id) return true;
+    }
+    return false;
+  }
+
   Future<void> _conceder() async {
     if (_alunoSelecionadoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -429,19 +440,47 @@ class _ConcederConquistaSheetState
 
     setState(() => _concedendo = true);
 
-    final conquistaObtida = widget.conquista.copyWith(
-      dataObtida: DateTime.now(),
-    );
+    try {
+      final alunoId = _alunoSelecionadoId!;
+      final alunoRef =
+          FirebaseFirestore.instance.collection('usuarios').doc(alunoId);
 
-    // Adiciona a conquista ao perfil do aluno e concede XP
-    await FirebaseFirestore.instance
-        .collection('usuarios')
-        .doc(_alunoSelecionadoId)
-        .update({
-      'conquistas':
-          FieldValue.arrayUnion([conquistaObtida.toMap()]),
-      'xp': FieldValue.increment(widget.conquista.xpRecompensa),
-    });
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(alunoRef);
+        final data = snap.data() ?? <String, dynamic>{};
+        final jaTem = _jaPossuiConquista(data);
+        if (jaTem) {
+          throw StateError('Aluno já possui esta conquista.');
+        }
+
+        final conquistaObtida = widget.conquista.copyWith(
+          dataObtida: DateTime.now(),
+        );
+
+        tx.update(alunoRef, {
+          'conquistas': FieldValue.arrayUnion([conquistaObtida.toMap()]),
+          'xp': FieldValue.increment(widget.conquista.xpRecompensa),
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is StateError
+                  ? e.message
+                  : 'Não foi possível conceder esta conquista.',
+            ),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+      if (mounted) setState(() => _concedendo = false);
+      return;
+    }
 
     if (mounted) {
       Navigator.pop(context);
@@ -617,66 +656,96 @@ class _ConcederConquistaSheetState
                               doc.data() as Map<String, dynamic>;
                           final nome = data['nome'] ?? 'Aluno';
                           final nivel = data['nivel'] ?? 1;
+                      final jaTem = _jaPossuiConquista(data);
                           final sel = _alunoSelecionadoId == doc.id;
 
                           return TapEffect(
-                            onTap: () => setState(() {
-                              _alunoSelecionadoId = doc.id;
-                              _alunoSelecionadoNome = nome;
-                            }),
-                            child: AnimatedContainer(
-                              duration:
-                                  const Duration(milliseconds: 180),
-                              margin:
-                                  const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
+                        onTap: jaTem
+                            ? null
+                            : () => setState(() {
+                                  _alunoSelecionadoId = doc.id;
+                                  _alunoSelecionadoNome = nome;
+                                }),
+                        child: Opacity(
+                          opacity: jaTem ? 0.55 : 1,
+                          child: AnimatedContainer(
+                            duration:
+                                const Duration(milliseconds: 180),
+                            margin:
+                                const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: sel
+                                  ? AppTheme.primary
+                                      .withOpacity(0.08)
+                                  : AppTheme.surface,
+                              borderRadius:
+                                  BorderRadius.circular(14),
+                              border: Border.all(
                                 color: sel
                                     ? AppTheme.primary
-                                        .withOpacity(0.08)
-                                    : AppTheme.surface,
-                                borderRadius:
-                                    BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: sel
-                                      ? AppTheme.primary
-                                      : Colors.transparent,
-                                  width: 1.5,
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor:
+                                    AppTheme.primary.withOpacity(0.15),
+                                child: Text(
+                                  nome[0].toUpperCase(),
+                                  style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ),
-                              child: Row(children: [
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: AppTheme.primary
-                                      .withOpacity(0.15),
-                                  child: Text(
-                                    nome[0].toUpperCase(),
-                                    style: const TextStyle(
-                                        color: AppTheme.primary,
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nome,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14),
+                                    ),
+                                    if (jaTem)
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          'Já possui esta conquista',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: Text(nome,
-                                        style: const TextStyle(
-                                            fontWeight:
-                                                FontWeight.w600,
-                                            fontSize: 14))),
-                                Text('Nível $nivel',
-                                    style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12)),
-                                if (sel) ...[
-                                  const SizedBox(width: 8),
-                                  const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: AppTheme.primary,
-                                      size: 20),
-                                ],
-                              ]),
-                            ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text('Nível $nivel',
+                                  style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12)),
+                              if (sel) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.check_circle_rounded,
+                                    color: AppTheme.primary, size: 20),
+                              ] else if (jaTem) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.lock_rounded,
+                                    color: Colors.grey[500], size: 18),
+                              ],
+                            ]),
+                          ),
+                        ),
                           );
                         }).toList(),
                       );
