@@ -87,7 +87,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildDockItem(0, Icons.auto_stories_rounded),
+              _buildDockItem(0, Icons.groups_rounded),
               _buildDockItem(1, Icons.workspace_premium_rounded),
               // Home com logo
               TapEffect(

@@ -532,8 +532,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         fontSize: 30,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -1)),
-                Text(_dataFormatada(),
-                    style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today_rounded,
+                        size: 12, color: Colors.grey[400]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _dataFormatada(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
