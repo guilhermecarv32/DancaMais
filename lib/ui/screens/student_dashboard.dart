@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
+import '../../logic/gamification/gamification_service.dart';
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
@@ -492,9 +493,13 @@ class _BotaoAprendi extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('usuarios').doc(uid).collection('aprendizados').doc(passoId).snapshots(),
+          .collection('progressoAluno')
+          .doc('${uid}_$passoId')
+          .snapshots(),
       builder: (context, snap) {
-        final jaAprendeu = snap.data?.exists ?? false;
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final status = (data?['status'] as String?) ?? '';
+        final jaAprendeu = status == 'aprendido' || status == 'validado';
         if (jaAprendeu) {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -532,13 +537,11 @@ class _BotaoAprendi extends StatelessWidget {
 
   Future<void> _marcarAprendi(BuildContext context) async {
     final db = FirebaseFirestore.instance;
-    final batch = db.batch();
-    batch.set(
-      db.collection('usuarios').doc(uid).collection('aprendizados').doc(passoId),
-      {'passoId': passoId, 'passoNome': passoNome, 'turmaId': turmaId, 'dataAprendizado': FieldValue.serverTimestamp(), 'validado': false},
-    );
-    batch.update(db.collection('usuarios').doc(uid), {'xp': FieldValue.increment(50)});
-    await batch.commit();
+    final movSnap = await db.collection('movimentacoes').doc(passoId).get();
+    if (!movSnap.exists) return;
+
+    final mov = MovimentacaoModel.fromFirestore(movSnap);
+    await GamificationService().registrarAprendizado(alunoId: uid, movimentacao: mov);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('🎉 +50 XP! Continue assim!'),

@@ -4,7 +4,7 @@ import '../../models/models.dart';
 /// Recompensas de XP para cada transição de status.
 class XPRecompensa {
   static const int marcarAprendido = 50;
-  static const int validadoProfessor = 25;
+  static const int validadoProfessor = 15;
 }
 
 /// Serviço central de gamificação.
@@ -117,6 +117,41 @@ class GamificationService {
     await _verificarConquistas(alunoId);
   }
 
+  Future<void> desvalidarAprendizado({
+    required String professorId,
+    required String alunoId,
+    required String movimentacaoId,
+  }) async {
+    final progressoId = '${alunoId}_$movimentacaoId';
+    final progressoRef =
+        _firestore.collection('progressoAluno').doc(progressoId);
+
+    final snap = await progressoRef.get();
+    if (!snap.exists) return;
+
+    final progresso = ProgressoAlunoModel.fromFirestore(snap);
+    if (!progresso.foiValidado) return;
+
+    await _firestore.runTransaction((transaction) async {
+      final alunoRef = _firestore.collection('usuarios').doc(alunoId);
+      final alunoSnap = await transaction.get(alunoRef);
+      final alunoData = alunoSnap.data() as Map<String, dynamic>;
+
+      final int xpAtual = alunoData['xp'] ?? 0;
+      final int novoXP = (xpAtual - XPRecompensa.validadoProfessor).clamp(0, 1 << 31);
+      final int novoNivel = _calcularNivel(novoXP);
+
+      transaction.update(progressoRef, {
+        'status': StatusProgresso.aprendido.name,
+        'dataValidado': FieldValue.delete(),
+        'professorValidouId': FieldValue.delete(),
+        'xpGanhoValidacao': 0,
+      });
+
+      transaction.update(alunoRef, {'xp': novoXP, 'nivel': novoNivel});
+    });
+  }
+
   // ─── VERIFICAÇÃO DE CONQUISTAS ───────────────────────────────────
 
   /// Verifica todas as conquistas cadastradas no Firestore (coleção
@@ -159,9 +194,7 @@ class GamificationService {
     // Agrupa por modalidade
     final porModalidade = <String, int>{};
     for (final doc in progressoSnap.docs) {
-      final m = (doc.data() as Map<String, dynamic>)['modalidade']
-          as String? ??
-          '';
+      final m = (doc.data())['modalidade'] as String? ?? '';
       porModalidade[m] = (porModalidade[m] ?? 0) + 1;
     }
 

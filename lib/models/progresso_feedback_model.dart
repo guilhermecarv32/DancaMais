@@ -11,7 +11,7 @@ enum StatusProgresso {
 /// Recompensas de XP para cada transição de status.
 class XPRecompensa {
   static const int marcarAprendido = 50;   // Aluno marca como aprendido
-  static const int validadoProfessor = 25; // Professor confirma a aprendizagem
+  static const int validadoProfessor = 15; // Professor confirma a aprendizagem
   static const int conquistaObtida = 30;   // Bônus ao desbloquear uma conquista
 }
 
