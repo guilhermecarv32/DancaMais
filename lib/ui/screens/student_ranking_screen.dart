@@ -225,7 +225,6 @@ class _RankingTab extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(25, 14, 25, 140),
               children: [
-                const SizedBox(height: 30),
                 _Podio(
                   entries: ranking.take(3).toList(),
                   currentUid: currentUid,
@@ -426,11 +425,11 @@ class _Podio extends StatelessWidget {
       children: [
         Expanded(
           child: Transform.translate(
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 6),
             child: _PodioCard(
               posicao: 2,
               entry: second,
-              color: const Color(0xFFB0BEC5), // prata
+              color: const Color(0xFF90A4AE), // prata (cinza azulado)
               isVoce: second?.uid == currentUid,
             ),
           ),
@@ -444,7 +443,7 @@ class _Podio extends StatelessWidget {
               child: _PodioCard(
                 posicao: 1,
                 entry: first,
-                color: const Color(0xFFFFC107), // ouro vibrante (#FFC107)
+                color: const Color(0xFFFFC107), // ouro (amarelo vibrante)
                 isVoce: first?.uid == currentUid,
                 isDestaque: true,
               ),
@@ -454,11 +453,11 @@ class _Podio extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Transform.translate(
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 6),
             child: _PodioCard(
               posicao: 3,
               entry: third,
-              color: const Color(0xFFCD7F32), // bronze (#CD7F32)
+              color: const Color(0xFFD17A22), // bronze (laranja acobreado)
               isVoce: third?.uid == currentUid,
             ),
           ),
@@ -488,11 +487,7 @@ class _PodioCard extends StatelessWidget {
     final nome = entry?.nome ?? 'Aguardando competidor';
     final bool semCompetidor = entry == null;
 
-    final base = TapEffect(
-      onTap: semCompetidor
-          ? null
-          : () => _abrirDetalhesAluno(context, entry!, posicao),
-      child: Container(
+    final base = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: (isVoce && !semCompetidor)
@@ -583,7 +578,6 @@ class _PodioCard extends StatelessWidget {
             )
         ],
       ),
-      ),
     );
 
     if (!semCompetidor) return base;
@@ -607,27 +601,15 @@ class _RankTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = isVoce ? AppTheme.primary.withOpacity(0.08) : Colors.white;
-    final Color? medalColor = switch (posicao) {
-      1 => const Color(0xFFFFC107),
-      2 => const Color(0xFFB0BEC5),
-      3 => const Color(0xFFCD7F32),
-      _ => null,
-    };
-
-    final BoxBorder? border = isTop3 && medalColor != null
-        ? Border.all(color: medalColor.withOpacity(0.75), width: 1.6)
-        : (isVoce
-            ? Border.all(
-                color: AppTheme.primary.withOpacity(0.25),
-                width: 1.2,
-              )
-            : null);
+    final border = isVoce
+        ? Border.all(color: AppTheme.primary.withOpacity(0.25), width: 1.2)
+        : null;
 
     return TapEffect(
-      onTap: () => _abrirDetalhesAluno(context, entry, posicao),
+      onTap: () {},
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(18),
@@ -641,23 +623,19 @@ class _RankTile extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, c) {
+            final available = c.maxWidth;
+            final colW =
+                ((available - 44 - 12 - 90 - 12) / 4).clamp(46.0, 62.0);
             return Row(
               children: [
                 _PosicaoBadge(posicao: posicao, isTop3: isTop3),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 13,
-                        backgroundColor: Colors.grey.withOpacity(0.14),
-                        child: Icon(Icons.person_rounded,
-                            size: 18, color: Colors.grey[500]),
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _primeiroNome(entry.nome),
+                          entry.nome,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -667,293 +645,20 @@ class _RankTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       _ColNum(
-                          width: 38,
+                          width: colW,
                           value: entry.nivel.toString(),
                           emphasis: true),
-                      _ColNum(width: 38, value: entry.xp.toString()),
-                      _ColNum(width: 38, value: entry.passos.toString()),
-                      _ColNum(width: 38, value: entry.coreografias.toString()),
+                      _ColNum(width: colW, value: entry.xp.toString()),
+                      _ColNum(width: colW, value: entry.passos.toString()),
+                      _ColNum(width: colW, value: entry.coreografias.toString()),
                     ],
                   ),
                 ),
               ],
             );
           },
-        ),
-      ),
-    );
-  }
-
-  String _primeiroNome(String nome) {
-    final t = nome.trim();
-    if (t.isEmpty) return 'Aluno';
-    final parts = t.split(RegExp(r'\s+'));
-    return parts.isNotEmpty ? parts.first : t;
-  }
-}
-
-void _abrirDetalhesAluno(BuildContext context, _RankEntry entry, int posicao) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _AlunoDetalhesSheet(entry: entry, posicao: posicao),
-  );
-}
-
-class _AlunoDetalhesSheet extends StatelessWidget {
-  final _RankEntry entry;
-  final int posicao;
-  const _AlunoDetalhesSheet({required this.entry, required this.posicao});
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.8,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(25, 12, 25, 30),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppTheme.primary.withOpacity(0.10),
-                      child: const Icon(Icons.person_rounded,
-                          color: AppTheme.primary, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Nome completo',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            entry.nome,
-                            style: const TextStyle(
-                              color: AppTheme.secondary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _DetalheRow(label: 'Posição', value: '#$posicao'),
-                _DetalheRow(label: 'Nível', value: entry.nivel.toString()),
-                _DetalheRow(label: 'XP', value: entry.xp.toString()),
-                _DetalheRow(
-                    label: 'Passos aprendidos', value: entry.passos.toString()),
-                _DetalheRow(
-                    label: 'Coreografias aprendidas',
-                    value: entry.coreografias.toString()),
-                const SizedBox(height: 18),
-                const Text(
-                  'Turmas',
-                  style: TextStyle(
-                    color: AppTheme.secondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('inscricoes')
-                      .where('alunoId', isEqualTo: entry.uid)
-                      .snapshots(),
-                  builder: (context, inscSnap) {
-                    final docs = inscSnap.data?.docs ?? [];
-                    final turmaIds = docs
-                        .map((d) => (d.data() as Map<String, dynamic>)['turmaId']
-                            as String?)
-                        .whereType<String>()
-                        .toSet()
-                        .toList();
-                    if (turmaIds.isEmpty) {
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          'Nenhuma turma encontrada para este aluno.',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return Column(
-                      children: turmaIds.map((turmaId) {
-                        return StreamBuilder<DocumentSnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('turmas')
-                              .doc(turmaId)
-                              .snapshots(),
-                          builder: (context, turmaSnap) {
-                            if (!turmaSnap.hasData || !turmaSnap.data!.exists) {
-                              return const SizedBox.shrink();
-                            }
-                            final data =
-                                turmaSnap.data!.data() as Map<String, dynamic>;
-                            final nomeTurma = (data['nome'] ?? '').toString();
-                            final modalidade =
-                                (data['modalidade'] ?? '').toString();
-                            final nivel = (data['nivel'] ?? '').toString();
-                            return Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: AppTheme.surface,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          AppTheme.primary.withOpacity(0.10),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.groups_rounded,
-                                      color: AppTheme.primary,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          nomeTurma.isEmpty
-                                              ? 'Turma'
-                                              : nomeTurma,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: AppTheme.secondary,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          [modalidade, nivel]
-                                              .where((s) => s.trim().isNotEmpty)
-                                              .join(' · '),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _DetalheRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetalheRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppTheme.secondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -966,71 +671,36 @@ class _TabelaHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
+      final available = c.maxWidth;
+      final colW =
+          ((available - 44 - 12 - 90 - 12) / 4).clamp(46.0, 62.0);
       return Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.withOpacity(0.12)),
         ),
         child: Row(
           children: [
-            TapEffect(
-              onTap: () => _abrirLegendaHeader(context),
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text(
-                    'i',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const SizedBox(width: 28), // espaço do badge de posição (sem círculo)
-            const SizedBox(width: 10),
+            const SizedBox(width: 44), // espaço do badge de posição
+            const SizedBox(width: 12),
             const Expanded(
               child: Text(
                 'Aluno',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: AppTheme.secondary,
+                  color: Colors.grey,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            _ColIcon(
-              width: 38,
-              icon: Icons.trending_up_rounded,
-              tooltip: 'Nível',
-            ),
-            _ColIcon(
-              width: 38,
-              icon: Icons.bolt_rounded,
-              tooltip: 'XP',
-            ),
-            _ColIcon(
-              width: 38,
-              icon: Icons.directions_walk_rounded,
-              tooltip: 'Passos',
-            ),
-            _ColIcon(
-              width: 38,
-              icon: Icons.queue_music_rounded,
-              tooltip: 'Coreografias',
-            ),
+            _ColLabel(width: colW, text: 'NÍVEL'),
+            _ColLabel(width: colW, text: 'XP'),
+            _ColLabel(width: colW, text: 'PASSOS'),
+            _ColLabel(width: colW, text: 'COREOS'),
           ],
         ),
       );
@@ -1038,167 +708,23 @@ class _TabelaHeader extends StatelessWidget {
   }
 }
 
-void _abrirLegendaHeader(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => const _LegendaHeaderSheet(),
-  );
-}
-
-class _LegendaHeaderSheet extends StatelessWidget {
-  const _LegendaHeaderSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(25, 20, 25, 30),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          const Text(
-            'Legenda',
-            style: TextStyle(
-              color: AppTheme.secondary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const _LegendaItem(
-            icon: Icons.trending_up_rounded,
-            title: 'Nível',
-            description: 'Nível atual do aluno.',
-          ),
-          const SizedBox(height: 10),
-          const _LegendaItem(
-            icon: Icons.bolt_rounded,
-            title: 'XP',
-            description: 'Experiência total acumulada.',
-          ),
-          const SizedBox(height: 10),
-          const _LegendaItem(
-            icon: Icons.directions_walk_rounded,
-            title: 'Passos',
-            description: 'Quantidade de passos aprendidos.',
-          ),
-          const SizedBox(height: 10),
-          const _LegendaItem(
-            icon: Icons.queue_music_rounded,
-            title: 'Coreografias',
-            description: 'Quantidade de coreografias aprendidas.',
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Ordem do ranking: Nível → XP → Passos → Coreografias',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendaItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _LegendaItem({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppTheme.primary, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.secondary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ColIcon extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
+class _ColLabel extends StatelessWidget {
+  final String text;
   final double width;
-  const _ColIcon({required this.width, required this.icon, required this.tooltip});
+  const _ColLabel({required this.width, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Tooltip(
-          message: tooltip,
-          child: Icon(icon, size: 16, color: Colors.grey[700]),
+      child: Text(
+        text,
+        textAlign: TextAlign.right,
+        style: const TextStyle(
+          color: Colors.grey,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -1235,16 +761,32 @@ class _PosicaoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = isTop3 ? AppTheme.secondary : Colors.grey[600]!;
-    return SizedBox(
-      width: 24,
-      child: Text(
-        '#$posicao',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w900,
-          fontSize: 12,
+    Color color;
+    if (posicao == 1) {
+      color = const Color(0xFFFFD54F);
+    } else if (posicao == 2) {
+      color = const Color(0xFFB0BEC5);
+    } else if (posicao == 3) {
+      color = const Color(0xFFFFAB91);
+    } else {
+      color = Colors.grey[400]!;
+    }
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: (isTop3 ? color : Colors.grey[200]!).withOpacity(0.35),
+      ),
+      child: Center(
+        child: Text(
+          '#$posicao',
+          style: TextStyle(
+            color: isTop3 ? AppTheme.secondary : Colors.grey[600],
+            fontWeight: FontWeight.w900,
+            fontSize: 12,
+          ),
         ),
       ),
     );
