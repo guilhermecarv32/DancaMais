@@ -55,6 +55,19 @@ class _StudentEventsSheetBodyState extends State<_StudentEventsSheetBody>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
                   _Header(
                     mode: _mode,
                     onModeChanged: (m) => setState(() => _mode = m),
@@ -98,54 +111,25 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(25, 25, 25, 10),
+      padding: const EdgeInsets.fromLTRB(25, 14, 25, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TapEffect(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      )
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.arrow_back_rounded,
-                        color: AppTheme.secondary),
-                  ),
+              Text(
+                'Eventos',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.secondary,
+                  letterSpacing: -1,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Eventos',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.secondary,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    Text(
-                      'Calendário completo de eventos',
-                      style: TextStyle(color: Colors.grey, fontSize: 15),
-                    ),
-                  ],
-                ),
+              Text(
+                'Calendário completo de eventos',
+                style: TextStyle(color: Colors.grey, fontSize: 15),
               ),
             ],
           ),
@@ -686,7 +670,7 @@ class _EventoDetalheAlunoSheet extends StatelessWidget {
                       ),
                     ),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
                           width: 52,
@@ -703,13 +687,18 @@ class _EventoDetalheAlunoSheet extends StatelessWidget {
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Text(
-                            evento.nome,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 22,
-                              color: AppTheme.secondary,
-                              height: 1.2,
+                          child: Padding(
+                            // Ajuste visual: alinha melhor o "peso" do título com o ícone,
+                            // principalmente quando o texto quebra em 2 linhas.
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              evento.nome,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 22,
+                                color: AppTheme.secondary,
+                                height: 1.2,
+                              ),
                             ),
                           ),
                         ),
