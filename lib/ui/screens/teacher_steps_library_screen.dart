@@ -39,7 +39,6 @@ class _TeacherStepsLibraryScreenState
   @override
   Widget build(BuildContext context) {
     const Color dark = AppTheme.secondary;
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return StreamBuilder<PerfilProfessor>(
       stream: PermissaoService.perfilStream(),
@@ -341,6 +340,46 @@ class _TeacherStepsLibraryScreenState
               TapEffect(
                 onTap: () {
                   Navigator.pop(context);
+                  _abrirSheetDefinirPassoSemana(mov, perfil);
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.event_available_rounded,
+                            color: Colors.green, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text('Definir como passo da semana',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 15)),
+                            Text('Selecionar uma turma e substituir o atual',
+                                style:
+                                    TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+              const Divider(height: 8),
+              TapEffect(
+                onTap: () {
+                  Navigator.pop(context);
                   _abrirSheetEditar(mov);
                 },
                 behavior: HitTestBehavior.opaque,
@@ -427,6 +466,19 @@ class _TeacherStepsLibraryScreenState
     );
   }
 
+  void _abrirSheetDefinirPassoSemana(
+      MovimentacaoModel mov, PerfilProfessor perfil) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelecionarTurmaPassoSemanaSheet(
+        mov: mov,
+        perfil: perfil,
+      ),
+    );
+  }
+
   void _abrirSheetEditar(MovimentacaoModel mov) {
     showModalBottomSheet(
       context: context,
@@ -504,6 +556,217 @@ class _TeacherStepsLibraryScreenState
       backgroundColor: Colors.transparent,
       builder: (_) =>
           _NovaMovimentacaoSheet(modalidades: modalidades),
+    );
+  }
+}
+
+class _SelecionarTurmaPassoSemanaSheet extends StatelessWidget {
+  final MovimentacaoModel mov;
+  final PerfilProfessor perfil;
+
+  const _SelecionarTurmaPassoSemanaSheet({
+    required this.mov,
+    required this.perfil,
+  });
+
+  Future<void> _definirEmTurma(
+      BuildContext context, TurmaModel turma, MovimentacaoModel mov) async {
+    final turmaRef =
+        FirebaseFirestore.instance.collection('turmas').doc(turma.id);
+
+    Future<void> aplicar() async {
+      await turmaRef.update({
+        'passoSemanaId': mov.id,
+        'passoSemanaNome': mov.nome,
+      });
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ "${mov.nome}" definido como passo da semana em "${turma.nome}".'),
+            backgroundColor: AppTheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+
+    // Se já existe um passo definido, confirma substituição
+    if ((turma.passoSemanaId ?? '').isNotEmpty &&
+        turma.passoSemanaId != mov.id) {
+      final ok = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: const Text('Substituir passo da semana?'),
+              content: Text(
+                'A turma "${turma.nome}" já tem um passo da semana definido '
+                '("${turma.passoSemanaNome ?? ''}").\n\n'
+                'Deseja substituir por "${mov.nome}"?',
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancelar')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Substituir')),
+              ],
+            ),
+          ) ??
+          false;
+      if (!ok) return;
+    }
+
+    await aplicar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(25, 20, 25, 25 + bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          Text('Definir como passo da semana',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppTheme.secondary)),
+          const SizedBox(height: 4),
+          Text(
+            'Escolha a turma (${mov.modalidade})',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('turmas')
+                .where('modalidade', isEqualTo: mov.modalidade)
+                .snapshots(),
+            builder: (context, snap) {
+              final turmas = (snap.data?.docs ?? [])
+                  .map((d) => TurmaModel.fromFirestore(d))
+                  .where((t) => perfil.podeEditarModalidade(t.modalidade))
+                  .toList();
+
+              if (turmas.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 18, color: Colors.grey),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Nenhuma turma disponível para esta modalidade.',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: turmas.length,
+                  itemBuilder: (context, i) {
+                    final t = turmas[i];
+                    final atual = (t.passoSemanaId ?? '').isNotEmpty;
+                    return TapEffect(
+                      onTap: () => _definirEmTurma(context, t, mov),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: atual
+                                ? AppTheme.primary.withOpacity(0.25)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.10),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.groups_rounded,
+                                  color: AppTheme.primary, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(t.nome,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: AppTheme.secondary)),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    atual
+                                        ? 'Atual: ${t.passoSemanaNome ?? ''}'
+                                        : 'Sem passo da semana',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: atual
+                                          ? AppTheme.primary
+                                          : Colors.grey[600],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: Colors.grey),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -819,7 +1082,6 @@ class _NovaMovimentacaoSheetState
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Container(
       padding: EdgeInsets.fromLTRB(25, 25, 25, 25 + bottom),
