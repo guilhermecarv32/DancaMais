@@ -176,13 +176,24 @@ class _HomeScreen extends StatelessWidget {
         final nome = (userData['nome'] ?? '').toString().trim().split(' ').first;
         final nivel = (userData['nivel'] as num?)?.toInt() ?? 1;
         final xp = (userData['xp'] as num?)?.toInt() ?? 0;
-        final xpNivel = (100 * nivel * 1.5).round();
-        final progresso = xpNivel > 0 ? (xp / xpNivel).clamp(0.0, 1.0) : 0.0;
+        int _xpAcumuladoAntesDoNivel(int nivelAtual) {
+          const base = 100;
+          const fator = 1.5;
+          int total = 0;
+          for (int n = 1; n < nivelAtual; n++) {
+            total += (base * (n * fator)).round();
+          }
+          return total;
+        }
+
+        final xpParaSubir = (100 * nivel * 1.5).round(); // custo do nível atual → próximo
+        final xpNoNivel = (xp - _xpAcumuladoAntesDoNivel(nivel)).clamp(0, xpParaSubir);
+        final progresso = xpParaSubir > 0 ? (xpNoNivel / xpParaSubir).clamp(0.0, 1.0) : 0.0;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 150),
           children: [
-            _buildHeader(context, nome, nivel, xp, xpNivel, progresso),
+            _buildHeader(context, nome, nivel, xpNoNivel, xpParaSubir, progresso),
             const SizedBox(height: 2),
             _buildAgenda(uid),
             const SizedBox(height: 24),
