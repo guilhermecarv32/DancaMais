@@ -935,7 +935,7 @@ class _SolicitacoesHubSheet extends StatelessWidget {
                             style: TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 15)),
                         Text(
-                          '+${gamif.XPRecompensa.validadoProfessor} XP (toggle validar/desvalidar)',
+                          '+${gamif.XPRecompensa.validadoProfessor} XP (Validar/Desvalidar)',
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
