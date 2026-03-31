@@ -16,6 +16,15 @@ enum _EventosViewMode { lista, meses }
 
 enum _OrdenacaoEventos { dataAsc, dataDesc, nomeAsc, nomeDesc }
 
+void _showEventoDetalheAluno(BuildContext context, _EventoVm evento) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => _EventoDetalheAlunoSheet(evento: evento),
+  );
+}
+
 class _StudentEventsSheetBody extends StatefulWidget {
   const _StudentEventsSheetBody();
 
@@ -357,7 +366,10 @@ class _EventosLista extends StatelessWidget {
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(25, 10, 25, 25),
           itemCount: eventos.length,
-          itemBuilder: (_, i) => _EventoTile(evento: eventos[i]),
+          itemBuilder: (_, i) => TapEffect(
+            onTap: () => _showEventoDetalheAluno(context, eventos[i]),
+            child: _EventoTile(evento: eventos[i]),
+          ),
         );
       },
     );
@@ -477,7 +489,12 @@ class _MesSection extends StatelessWidget {
                   ],
                 )
               ]
-            : eventos.map((e) => _EventoMiniTile(evento: e)).toList(),
+            : eventos
+                .map((e) => TapEffect(
+                      onTap: () => _showEventoDetalheAluno(context, e),
+                      child: _EventoMiniTile(evento: e),
+                    ))
+                .toList(),
       ),
     );
   }
@@ -620,6 +637,178 @@ class _EventoTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EventoDetalheAlunoSheet extends StatelessWidget {
+  final _EventoVm evento;
+
+  const _EventoDetalheAlunoSheet({required this.evento});
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = evento.dataHora;
+    final dataStr = dt == null
+        ? 'Sem data definida'
+        : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    final horaStr = dt == null
+        ? '—'
+        : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final loc = evento.localizacao.trim();
+    final desc = evento.descricao.trim();
+    final maxH = MediaQuery.of(context).size.height * 0.88;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Material(
+          color: Colors.white,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 18),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.event_rounded,
+                            color: AppTheme.primary,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            evento.nome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 22,
+                              color: AppTheme.secondary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _DetalheCampo(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Data',
+                      value: dataStr,
+                    ),
+                    const SizedBox(height: 14),
+                    _DetalheCampo(
+                      icon: Icons.schedule_rounded,
+                      label: 'Horário',
+                      value: horaStr,
+                    ),
+                    const SizedBox(height: 14),
+                    _DetalheCampo(
+                      icon: Icons.place_outlined,
+                      label: 'Local',
+                      value: loc.isEmpty ? '—' : loc,
+                    ),
+                    if (desc.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      Text(
+                        'Descrição',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        desc,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetalheCampo extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetalheCampo({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 22, color: AppTheme.primary.withOpacity(0.85)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  color: AppTheme.secondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
