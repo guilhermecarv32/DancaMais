@@ -5,7 +5,8 @@ import '../../core/theme/app_theme.dart';
 import '../widgets/tap_effect.dart';
 
 class TeacherEventsScreen extends StatefulWidget {
-  const TeacherEventsScreen({super.key});
+  final VoidCallback? onClose;
+  const TeacherEventsScreen({super.key, this.onClose});
 
   @override
   State<TeacherEventsScreen> createState() => _TeacherEventsScreenState();
@@ -32,6 +33,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Header(
+              onClose: widget.onClose,
               mode: _mode,
               onModeChanged: (m) => setState(() => _mode = m),
               ord: _ord,
@@ -58,6 +60,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
 }
 
 class _Header extends StatelessWidget {
+  final VoidCallback? onClose;
   final _EventosViewMode mode;
   final void Function(_EventosViewMode) onModeChanged;
   final _OrdenacaoEventos ord;
@@ -67,6 +70,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onNovo;
 
   const _Header({
+    required this.onClose,
     required this.mode,
     required this.onModeChanged,
     required this.ord,
@@ -85,6 +89,31 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
+              if (onClose != null) ...[
+                TapEffect(
+                  onTap: onClose,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        )
+                      ],
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.arrow_back_rounded,
+                          color: AppTheme.secondary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

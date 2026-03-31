@@ -399,6 +399,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       const TeacherBadgesScreen(),
       const TeacherProfileScreen(),
     ];
+    final currentScreen = _selectedIndex == -1
+        ? TeacherEventsScreen(onClose: () => setState(() => _selectedIndex = 2))
+        : screens[_selectedIndex];
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -406,7 +409,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         bottom: true,
         child: Stack(
           children: [
-            screens[_selectedIndex],
+            currentScreen,
             Align(
               alignment: Alignment.bottomCenter,
               child: IgnorePointer(
@@ -692,9 +695,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 'Eventos',
                 Icons.event_note_rounded,
                 AppTheme.third,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TeacherEventsScreen()),
-                ),
+                () => setState(() => _selectedIndex = -1),
               ),
             ]),
           ),
