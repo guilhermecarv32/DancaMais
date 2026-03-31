@@ -299,12 +299,14 @@ class _EventosLista extends StatelessWidget {
           final m = d.data() as Map<String, dynamic>;
           final nome = (m['nome'] as String?)?.trim() ?? '';
           final desc = (m['descricao'] as String?)?.trim() ?? '';
+          final loc = (m['localizacao'] as String?)?.trim() ?? '';
           final ts = m['dataHora'] as Timestamp?;
           final dt = ts?.toDate();
           return _EventoVm(
             id: d.id,
             nome: nome.isEmpty ? 'Evento' : nome,
             descricao: desc,
+            localizacao: loc,
             dataHora: dt,
           );
         }).toList();
@@ -380,6 +382,7 @@ class _EventosMeses extends StatelessWidget {
           final m = d.data() as Map<String, dynamic>;
           final nome = (m['nome'] as String?)?.trim() ?? '';
           final desc = (m['descricao'] as String?)?.trim() ?? '';
+          final loc = (m['localizacao'] as String?)?.trim() ?? '';
           final ts = m['dataHora'] as Timestamp?;
           final dt = ts?.toDate();
           if (dt == null) continue;
@@ -387,6 +390,7 @@ class _EventosMeses extends StatelessWidget {
             id: d.id,
             nome: nome.isEmpty ? 'Evento' : nome,
             descricao: desc,
+            localizacao: loc,
             dataHora: dt,
           ));
         }
@@ -536,6 +540,7 @@ class _EventoTile extends StatelessWidget {
     final horaStr = dt == null
         ? '—'
         : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final loc = evento.localizacao.trim();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -570,7 +575,9 @@ class _EventoTile extends StatelessWidget {
                         color: AppTheme.secondary)),
                 const SizedBox(height: 4),
                 Text(
-                  'Evento · $dataStr · $horaStr',
+                  loc.isEmpty
+                      ? 'Evento · $dataStr · $horaStr'
+                      : 'Evento · $dataStr · $horaStr · $loc',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -634,11 +641,13 @@ class _EventoVm {
   final String id;
   final String nome;
   final String descricao;
+  final String localizacao;
   final DateTime? dataHora;
   _EventoVm({
     required this.id,
     required this.nome,
     required this.descricao,
+    required this.localizacao,
     required this.dataHora,
   });
 }

@@ -342,6 +342,15 @@ class _EventosLista extends StatelessWidget {
   final _OrdenacaoEventos ord;
   const _EventosLista({required this.uid, required this.ord});
 
+  void _abrirOpcoes(BuildContext context, _EventoVm evento) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EventoOpcoesSheet(evento: evento, uid: uid),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -355,12 +364,14 @@ class _EventosLista extends StatelessWidget {
           final m = d.data() as Map<String, dynamic>;
           final nome = (m['nome'] as String?)?.trim() ?? '';
           final desc = (m['descricao'] as String?)?.trim() ?? '';
+          final loc = (m['localizacao'] as String?)?.trim() ?? '';
           final ts = m['dataHora'] as Timestamp?;
           final dt = ts?.toDate();
           return _EventoVm(
             id: d.id,
             nome: nome.isEmpty ? 'Evento' : nome,
             descricao: desc,
+            localizacao: loc,
             dataHora: dt,
           );
         }).toList();
@@ -392,7 +403,10 @@ class _EventosLista extends StatelessWidget {
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(25, 10, 25, 25),
           itemCount: eventos.length,
-          itemBuilder: (_, i) => _EventoTile(evento: eventos[i]),
+          itemBuilder: (_, i) => TapEffect(
+            onTap: () => _abrirOpcoes(context, eventos[i]),
+            child: _EventoTile(evento: eventos[i]),
+          ),
         );
       },
     );
@@ -440,6 +454,7 @@ class _EventosMeses extends StatelessWidget {
           final m = d.data() as Map<String, dynamic>;
           final nome = (m['nome'] as String?)?.trim() ?? '';
           final desc = (m['descricao'] as String?)?.trim() ?? '';
+          final loc = (m['localizacao'] as String?)?.trim() ?? '';
           final ts = m['dataHora'] as Timestamp?;
           final dt = ts?.toDate();
           if (dt == null) continue;
@@ -447,6 +462,7 @@ class _EventosMeses extends StatelessWidget {
             id: d.id,
             nome: nome.isEmpty ? 'Evento' : nome,
             descricao: desc,
+            localizacao: loc,
             dataHora: dt,
           ));
         }
@@ -512,7 +528,383 @@ class _MesSection extends StatelessWidget {
                   ],
                 )
               ]
-            : eventos.map((e) => _EventoMiniTile(evento: e)).toList(),
+            : eventos
+                .map((e) => TapEffect(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => _EventoOpcoesSheet(evento: e, uid: null),
+                      ),
+                      child: _EventoMiniTile(evento: e),
+                    ))
+                .toList(),
+      ),
+    );
+  }
+}
+
+class _EventoOpcoesSheet extends StatelessWidget {
+  final _EventoVm evento;
+  final String? uid; // quando null, usa apenas edição/remoção (sem depender do uid)
+
+  const _EventoOpcoesSheet({required this.evento, required this.uid});
+
+  Future<void> _confirmarExcluir(BuildContext context) async {
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Excluir evento?'),
+            content: Text('"${evento.nome}" será excluído permanentemente.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+
+    await FirebaseFirestore.instance.collection('eventos').doc(evento.id).delete();
+    if (context.mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('🗑️ Evento excluído.'),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  void _abrirEditar(BuildContext context) {
+    Navigator.pop(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditarEventoSheet(evento: evento),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 18, 25, 25),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Text(
+              evento.nome,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                color: AppTheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TapEffect(
+              onTap: () => _abrirEditar(context),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.edit_rounded,
+                        color: AppTheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Editar',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                ]),
+              ),
+            ),
+            const Divider(height: 8),
+            TapEffect(
+              onTap: () => _confirmarExcluir(context),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        color: Colors.redAccent, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Excluir',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: Colors.redAccent)),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditarEventoSheet extends StatefulWidget {
+  final _EventoVm evento;
+  const _EditarEventoSheet({required this.evento});
+
+  @override
+  State<_EditarEventoSheet> createState() => _EditarEventoSheetState();
+}
+
+class _EditarEventoSheetState extends State<_EditarEventoSheet> {
+  late final TextEditingController _nomeCtrl;
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _locCtrl;
+  DateTime? _dataHora;
+  bool _salvando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeCtrl = TextEditingController(text: widget.evento.nome);
+    _descCtrl = TextEditingController(text: widget.evento.descricao);
+    _locCtrl = TextEditingController(text: widget.evento.localizacao);
+    _dataHora = widget.evento.dataHora;
+  }
+
+  @override
+  void dispose() {
+    _nomeCtrl.dispose();
+    _descCtrl.dispose();
+    _locCtrl.dispose();
+    super.dispose();
+  }
+
+  String _formatarDataHora(DateTime d) {
+    final dia = d.day.toString().padLeft(2, '0');
+    final mes = d.month.toString().padLeft(2, '0');
+    final hora = d.hour.toString().padLeft(2, '0');
+    final min = d.minute.toString().padLeft(2, '0');
+    return '$dia/$mes/${d.year} • $hora:$min';
+  }
+
+  Future<void> _selecionarDataHora() async {
+    final agora = DateTime.now();
+    final base = _dataHora ?? agora;
+    final data = await showDatePicker(
+      context: context,
+      initialDate: base,
+      firstDate: DateTime(2000, 1, 1),
+      lastDate: DateTime(2100, 12, 31),
+      helpText: 'Selecione a data do evento',
+    );
+    if (data == null) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(base),
+      helpText: 'Selecione o horário',
+    );
+    if (hora == null) return;
+    setState(() {
+      _dataHora =
+          DateTime(data.year, data.month, data.day, hora.hour, hora.minute);
+    });
+  }
+
+  Future<void> _salvar() async {
+    final nome = _nomeCtrl.text.trim();
+    final desc = _descCtrl.text.trim();
+    final loc = _locCtrl.text.trim();
+    if (nome.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe o nome do evento.')),
+      );
+      return;
+    }
+    if (_dataHora == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a data e hora do evento.')),
+      );
+      return;
+    }
+
+    setState(() => _salvando = true);
+    await FirebaseFirestore.instance.collection('eventos').doc(widget.evento.id).update({
+      'nome': nome,
+      'descricao': desc,
+      'localizacao': loc,
+      'dataHora': Timestamp.fromDate(_dataHora!),
+      'atualizadoEm': FieldValue.serverTimestamp(),
+    });
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✅ Evento atualizado!'),
+          backgroundColor: AppTheme.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(25, 20, 25, 25 + bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const Text(
+              'Editar evento',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppTheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _Input(
+              controller: _nomeCtrl,
+              hint: 'Nome do evento',
+              icon: Icons.drive_file_rename_outline_rounded,
+            ),
+            const SizedBox(height: 12),
+            _Input(
+              controller: _descCtrl,
+              hint: 'Descrição (opcional)',
+              icon: Icons.notes_rounded,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            _Input(
+              controller: _locCtrl,
+              hint: 'Localização (opcional)',
+              icon: Icons.place_outlined,
+            ),
+            const SizedBox(height: 12),
+            TapEffect(
+              onTap: _selecionarDataHora,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_rounded,
+                        color: AppTheme.primary, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _dataHora == null
+                            ? 'Data e hora'
+                            : _formatarDataHora(_dataHora!),
+                        style: TextStyle(
+                          color: _dataHora == null
+                              ? Colors.grey[500]
+                              : AppTheme.secondary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _salvando ? null : _salvar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                child: _salvando
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Salvar alterações',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -596,6 +988,7 @@ class _EventoTile extends StatelessWidget {
     final horaStr = dt == null
         ? '—'
         : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final loc = evento.localizacao.trim();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -630,7 +1023,9 @@ class _EventoTile extends StatelessWidget {
                         color: AppTheme.secondary)),
                 const SizedBox(height: 4),
                 Text(
-                  'Evento · $dataStr · $horaStr',
+                  loc.isEmpty
+                      ? 'Evento · $dataStr · $horaStr'
+                      : 'Evento · $dataStr · $horaStr · $loc',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -694,11 +1089,13 @@ class _EventoVm {
   final String id;
   final String nome;
   final String descricao;
+  final String localizacao;
   final DateTime? dataHora;
   _EventoVm({
     required this.id,
     required this.nome,
     required this.descricao,
+    required this.localizacao,
     required this.dataHora,
   });
 }
@@ -714,6 +1111,7 @@ class _NovoEventoSheet extends StatefulWidget {
 class _NovoEventoSheetState extends State<_NovoEventoSheet> {
   final _nomeCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _locCtrl = TextEditingController();
   DateTime? _dataHora;
   bool _salvando = false;
 
@@ -721,6 +1119,7 @@ class _NovoEventoSheetState extends State<_NovoEventoSheet> {
   void dispose() {
     _nomeCtrl.dispose();
     _descCtrl.dispose();
+    _locCtrl.dispose();
     super.dispose();
   }
 
@@ -757,6 +1156,7 @@ class _NovoEventoSheetState extends State<_NovoEventoSheet> {
   Future<void> _salvar() async {
     final nome = _nomeCtrl.text.trim();
     final desc = _descCtrl.text.trim();
+    final loc = _locCtrl.text.trim();
     if (nome.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Informe o nome do evento.')),
@@ -775,6 +1175,7 @@ class _NovoEventoSheetState extends State<_NovoEventoSheet> {
     await ref.set({
       'nome': nome,
       'descricao': desc,
+      'localizacao': loc,
       'dataHora': Timestamp.fromDate(_dataHora!),
       'criadoPorId': widget.uid,
       'criadoEm': FieldValue.serverTimestamp(),
@@ -838,6 +1239,12 @@ class _NovoEventoSheetState extends State<_NovoEventoSheet> {
               hint: 'Descrição (opcional)',
               icon: Icons.notes_rounded,
               maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            _Input(
+              controller: _locCtrl,
+              hint: 'Localização (opcional)',
+              icon: Icons.place_outlined,
             ),
             const SizedBox(height: 12),
             TapEffect(
