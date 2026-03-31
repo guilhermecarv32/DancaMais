@@ -674,7 +674,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             child: _buildBigBentoCard(
               'Recompensar Aluno',
               Icons.workspace_premium_rounded,
-              0,
+              Colors.amber[700]!,
               () => setState(() => _selectedIndex = 3),
             ),
           ),
@@ -684,14 +684,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               _buildSmallBentoCard(
                 'Solicitações',
                 Icons.notifications_active_rounded,
-                1,
+                Colors.orange[800]!,
                 () => _abrirHubSolicitacoes(context),
               ),
               const SizedBox(height: 8),
               _buildSmallBentoCard(
                 'Eventos',
                 Icons.event_note_rounded,
-                2,
+                AppTheme.third,
                 () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const TeacherEventsScreen()),
                 ),
@@ -717,22 +717,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  static const List<Color> _bentoPalette = [
-    AppTheme.primary,
-    AppTheme.secondary,
-    AppTheme.third,
-  ];
-
   Widget _buildBigBentoCard(
-      String title, IconData icon, int paletteIndex, VoidCallback onTap) {
-    final bg = _bentoPalette[paletteIndex % _bentoPalette.length];
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return TapEffect(
       onTap: onTap,
       child: Container(
         height: 140,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: bg,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -746,13 +739,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.18),
+              backgroundColor: color,
               radius: 22,
               child: Icon(icon, color: Colors.white, size: 24),
             ),
             Text(title,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppTheme.secondary,
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
                     height: 1.1)),
@@ -763,15 +756,14 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Widget _buildSmallBentoCard(
-      String title, IconData icon, int paletteIndex, VoidCallback onTap) {
-    final bg = _bentoPalette[paletteIndex % _bentoPalette.length];
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return TapEffect(
       onTap: onTap,
       child: Container(
         height: 64,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: bg,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -781,12 +773,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ],
         ),
         child: Row(children: [
-          Icon(icon, color: Colors.white, size: 22),
+          Icon(icon, color: color, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Text(title,
                 style: const TextStyle(
-                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 13),
                 overflow: TextOverflow.ellipsis),
