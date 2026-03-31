@@ -820,7 +820,8 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
   final ScrollController _scrollController = ScrollController();
   final List<StreamSubscription> _subs = [];
   Set<String> _turmaIds = <String>{};
-  List<_AulaHojeAluno> _aulas = [];
+  List<_AgendaItemAluno> _itens = [];
+  List<_AgendaItemAluno> _eventosHoje = [];
 
   static const double _heroHeight = 110.0;
   static const double _subHeight = 64.0;
@@ -853,6 +854,39 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
         _rebuildAulasFromTurmasCache();
       }),
     );
+
+    // Eventos do dia — aparecem para alunos também
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    _subs.add(
+      FirebaseFirestore.instance
+          .collection('eventos')
+          .where('dataHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('dataHora', isLessThanOrEqualTo: Timestamp.fromDate(end))
+          .orderBy('dataHora')
+          .snapshots()
+          .listen((snap) {
+        final eventos = snap.docs.map((d) {
+          final m = d.data();
+          final nome = (m['nome'] as String?)?.trim() ?? '';
+          final ts = m['dataHora'] as Timestamp?;
+          final dt = ts?.toDate();
+          final h = dt == null
+              ? '—'
+              : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+          return _AgendaItemAluno.evento(
+            id: d.id,
+            nome: nome.isEmpty ? 'Evento' : nome,
+            horario: h,
+          );
+        }).toList();
+
+        if (!mounted) return;
+        setState(() => _eventosHoje = eventos);
+        _rebuildAulasFromTurmasCache();
+      }),
+    );
   }
 
   List<TurmaModel> _turmasCache = [];
@@ -864,32 +898,27 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
   void _rebuildAulasFromTurmasCache() {
     if (!mounted) return;
     final filtradas = _turmasCache.where((t) => _turmaIds.contains(t.id)).toList();
-    setState(() => _aulas = _extrairAulasHoje(filtradas));
+    final aulas = _extrairAulasHoje(filtradas);
+    final todos = [...aulas, ..._eventosHoje]
+      ..sort((a, b) => a.sortKey.compareTo(b.sortKey));
+    setState(() => _itens = todos);
   }
 
-  List<_AulaHojeAluno> _extrairAulasHoje(List<TurmaModel> turmas) {
+  List<_AgendaItemAluno> _extrairAulasHoje(List<TurmaModel> turmas) {
     const diasPt = [
       'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
     ];
     final diaHoje = diasPt[DateTime.now().weekday - 1];
-    final aulas = <_AulaHojeAluno>[];
+    final aulas = <_AgendaItemAluno>[];
     for (final turma in turmas) {
       for (final h in turma.horariosDia) {
         if (h.dia == diaHoje) {
-          aulas.add(_AulaHojeAluno(turma: turma, horario: h.horario));
+          aulas.add(_AgendaItemAluno.aula(turma: turma, horario: h.horario));
         }
       }
     }
-    aulas.sort((a, b) => _horaSort(a.horario).compareTo(_horaSort(b.horario)));
+    aulas.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     return aulas;
-  }
-
-  String _horaSort(String horario) {
-    final m = RegExp(r'(\d{1,2}):?(\d{2})').firstMatch(horario);
-    if (m == null) return '99:99';
-    final h = int.tryParse(m.group(1) ?? '') ?? 99;
-    final min = int.tryParse(m.group(2) ?? '') ?? 99;
-    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
   }
 
   double _getCardTop(int index) {
@@ -912,7 +941,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
 
   @override
   Widget build(BuildContext context) {
-    if (_aulas.isEmpty) {
+    if (_itens.isEmpty) {
       return Container(
         height: 80,
         padding: const EdgeInsets.all(20),
@@ -939,7 +968,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
     final scrollOffset =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
     final totalStack =
-        _getCardTop(_aulas.length - 1) + (_aulas.length == 1 ? _heroHeight : _subHeight);
+        _getCardTop(_itens.length - 1) + (_itens.length == 1 ? _heroHeight : _subHeight);
     final visibleHeight = _heroHeight + (_peekOffset * 2) + 32;
 
     return NotificationListener<ScrollNotification>(
@@ -954,8 +983,8 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                for (int i = _aulas.length - 1; i >= 0; i--)
-                  _buildStackedCard(i, _aulas[i], scrollOffset),
+                for (int i = _itens.length - 1; i >= 0; i--)
+                  _buildStackedCard(i, _itens[i], scrollOffset),
               ],
             ),
           ),
@@ -964,7 +993,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
     );
   }
 
-  Widget _buildStackedCard(int index, _AulaHojeAluno aula, double scrollOffset) {
+  Widget _buildStackedCard(int index, _AgendaItemAluno item, double scrollOffset) {
     final naturalTop = _getCardTop(index);
     final top = (naturalTop - scrollOffset).clamp(0.0, naturalTop);
     final depth = (index - (scrollOffset / (_subHeight + _peekOffset))).clamp(0.0, 10.0);
@@ -978,13 +1007,13 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
         alignment: Alignment.topCenter,
         child: Opacity(
           opacity: (1.0 - depth * 0.08).clamp(0.75, 1.0),
-          child: index == 0 ? _buildHeroCard(aula) : _buildSubCard(aula),
+          child: index == 0 ? _buildHeroCard(item) : _buildSubCard(item),
         ),
       ),
     );
   }
 
-  Widget _buildHeroCard(_AulaHojeAluno aula) => Container(
+  Widget _buildHeroCard(_AgendaItemAluno item) => Container(
         height: _heroHeight,
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
         decoration: BoxDecoration(
@@ -1007,7 +1036,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    aula.turma.modalidade.toUpperCase(),
+                    item.kindLabel.toUpperCase(),
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 10,
@@ -1017,7 +1046,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    aula.turma.nome,
+                    item.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -1035,7 +1064,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                aula.horario,
+                item.horario,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -1047,7 +1076,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
         ),
       );
 
-  Widget _buildSubCard(_AulaHojeAluno aula) => Container(
+  Widget _buildSubCard(_AgendaItemAluno item) => Container(
         height: _subHeight,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
@@ -1062,7 +1091,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
           border: Border.all(color: Colors.grey.withOpacity(0.07)),
         ),
         child: Row(children: [
-          Text(aula.horario,
+          Text(item.horario,
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -1073,11 +1102,11 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(aula.turma.nome,
+                Text(item.title,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 13),
                     overflow: TextOverflow.ellipsis),
-                Text(aula.turma.modalidade,
+                Text(item.subtitle,
                     style: const TextStyle(color: Colors.grey, fontSize: 11),
                     overflow: TextOverflow.ellipsis),
               ],
@@ -1087,10 +1116,53 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
       );
 }
 
-class _AulaHojeAluno {
-  final TurmaModel turma;
+class _AgendaItemAluno {
+  final String kind; // 'aula' | 'evento'
   final String horario;
-  _AulaHojeAluno({required this.turma, required this.horario});
+  final String sortKey;
+  final TurmaModel? turma;
+  final String? nomeEvento;
+  final String? eventoId;
+
+  _AgendaItemAluno._({
+    required this.kind,
+    required this.horario,
+    required this.sortKey,
+    this.turma,
+    this.nomeEvento,
+    this.eventoId,
+  });
+
+  factory _AgendaItemAluno.aula({required TurmaModel turma, required String horario}) {
+    return _AgendaItemAluno._(
+      kind: 'aula',
+      horario: horario,
+      sortKey: _horaSort(horario),
+      turma: turma,
+    );
+  }
+
+  factory _AgendaItemAluno.evento({required String id, required String nome, required String horario}) {
+    return _AgendaItemAluno._(
+      kind: 'evento',
+      horario: horario,
+      sortKey: _horaSort(horario),
+      nomeEvento: nome,
+      eventoId: id,
+    );
+  }
+
+  static String _horaSort(String horario) {
+    final m = RegExp(r'(\d{1,2}):?(\d{2})').firstMatch(horario);
+    if (m == null) return '99:99';
+    final h = int.tryParse(m.group(1) ?? '') ?? 99;
+    final min = int.tryParse(m.group(2) ?? '') ?? 99;
+    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+  }
+
+  String get kindLabel => kind == 'evento' ? 'Evento' : (turma?.modalidade ?? 'Aula');
+  String get title => kind == 'evento' ? (nomeEvento ?? 'Evento') : (turma?.nome ?? '');
+  String get subtitle => kind == 'evento' ? 'Evento' : (turma?.modalidade ?? '');
 }
 
 // ─────────────────────────────────────────────────────────────────
