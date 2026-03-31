@@ -13,6 +13,7 @@ class RegisterRequested extends AuthEvent {
   final String password;
   final String nome;
   final String tipo;       // 'aluno' ou 'professor'
+  final DateTime dataNascimento;
   final String? modalidade;
   final List<String> modalidades; // Modalidade selecionada pelo professor no cadastro
 
@@ -21,6 +22,7 @@ class RegisterRequested extends AuthEvent {
     this.password,
     this.nome,
     this.tipo, {
+    required this.dataNascimento,
     this.modalidades = const [],
     this.modalidade,
   });

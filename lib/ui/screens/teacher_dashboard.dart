@@ -12,6 +12,7 @@ import 'teacher_steps_library_screen.dart';
 import 'teacher_badges_screen.dart';
 import 'teacher_classes_screen.dart';
 import 'teacher_profile_screen.dart';
+import 'teacher_events_screen.dart';
 import '../widgets/tap_effect.dart';
 
 // =============================================================
@@ -36,7 +37,9 @@ class AgendaStackedScroll extends StatefulWidget {
 
 class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
   final ScrollController _scrollController = ScrollController();
-  List<_AulaHoje> _aulas = [];
+  List<_AgendaItem> _itens = [];
+  List<TurmaModel> _turmasCache = [];
+  List<_AgendaItem> _eventosHoje = [];
 
   static const double _heroHeight = 110.0;
   static const double _subHeight = 64.0;
@@ -53,7 +56,37 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
       if (!mounted) return;
       final turmas =
           snap.docs.map((d) => TurmaModel.fromFirestore(d)).toList();
-      setState(() => _aulas = _extrairAulasHoje(turmas));
+      _turmasCache = turmas;
+      _rebuildItens();
+    });
+
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    FirebaseFirestore.instance
+        .collection('eventos')
+        .where('criadoPorId', isEqualTo: widget.professorId)
+        .where('dataHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('dataHora', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .orderBy('dataHora')
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      _eventosHoje = snap.docs.map((d) {
+        final m = d.data();
+        final nome = (m['nome'] as String?)?.trim() ?? '';
+        final ts = m['dataHora'] as Timestamp?;
+        final dt = ts?.toDate();
+        final h = dt == null
+            ? '—'
+            : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        return _AgendaItem.evento(
+          id: d.id,
+          nome: nome.isEmpty ? 'Evento' : nome,
+          horario: h,
+        );
+      }).toList();
+      _rebuildItens();
     });
   }
 
@@ -68,25 +101,29 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
     super.dispose();
   }
 
-  List<_AulaHoje> _extrairAulasHoje(List<TurmaModel> turmas) {
+  List<_AgendaItem> _extrairAulasHoje(List<TurmaModel> turmas) {
     const diasPt = [
       'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
     ];
     final diaHoje = diasPt[DateTime.now().weekday - 1];
-    final aulas = <_AulaHoje>[];
+    final aulas = <_AgendaItem>[];
     for (final turma in turmas) {
       for (final h in turma.horariosDia) {
         if (h.dia == diaHoje) {
-          aulas.add(_AulaHoje(turma: turma, horario: h.horario));
+          aulas.add(_AgendaItem.aula(turma: turma, horario: h.horario));
         }
       }
     }
-    aulas.sort((a, b) {
-      final hA = a.horario.split(':').first.padLeft(2, '0');
-      final hB = b.horario.split(':').first.padLeft(2, '0');
-      return hA.compareTo(hB);
-    });
+    aulas.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     return aulas;
+  }
+
+  void _rebuildItens() {
+    if (!mounted) return;
+    final aulas = _extrairAulasHoje(_turmasCache);
+    final todos = [...aulas, ..._eventosHoje]
+      ..sort((a, b) => a.sortKey.compareTo(b.sortKey));
+    setState(() => _itens = todos);
   }
 
   double _getCardTop(int index) {
@@ -99,7 +136,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
 
   @override
   Widget build(BuildContext context) {
-    if (_aulas.isEmpty) {
+    if (_itens.isEmpty) {
       return Container(
         height: 80,
         padding: const EdgeInsets.all(20),
@@ -125,8 +162,8 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
 
     final scrollOffset =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
-    final totalStack = _getCardTop(_aulas.length - 1) +
-        (_aulas.length == 1 ? _heroHeight : _subHeight);
+    final totalStack = _getCardTop(_itens.length - 1) +
+        (_itens.length == 1 ? _heroHeight : _subHeight);
     final visibleHeight = _heroHeight + (_peekOffset * 2) + 32;
 
     return NotificationListener<ScrollNotification>(
@@ -141,8 +178,8 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                for (int i = _aulas.length - 1; i >= 0; i--)
-                  _buildStackedCard(i, _aulas[i], scrollOffset),
+                for (int i = _itens.length - 1; i >= 0; i--)
+                  _buildStackedCard(i, _itens[i], scrollOffset),
               ],
             ),
           ),
@@ -152,7 +189,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
   }
 
   Widget _buildStackedCard(
-      int index, _AulaHoje aula, double scrollOffset) {
+      int index, _AgendaItem item, double scrollOffset) {
     final naturalTop = _getCardTop(index);
     final top = (naturalTop - scrollOffset).clamp(0.0, naturalTop);
     final depth = (index - (scrollOffset / (_subHeight + _peekOffset)))
@@ -168,14 +205,14 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
         child: Opacity(
           opacity: (1.0 - depth * 0.08).clamp(0.75, 1.0),
           child: index == 0
-              ? _buildHeroCard(aula)
-              : _buildSubCard(aula, depth),
+              ? _buildHeroCard(item)
+              : _buildSubCard(item, depth),
         ),
       ),
     );
   }
 
-  Widget _buildHeroCard(_AulaHoje aula) => Container(
+  Widget _buildHeroCard(_AgendaItem item) => Container(
         height: _heroHeight,
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
         decoration: BoxDecoration(
@@ -197,7 +234,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    aula.turma.modalidade.toUpperCase(),
+                    item.kindLabel.toUpperCase(),
                     style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 10,
@@ -205,7 +242,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
                         letterSpacing: 1.5),
                   ),
                   const SizedBox(height: 4),
-                  Text(aula.turma.nome,
+                  Text(item.title,
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -219,7 +256,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
               decoration: BoxDecoration(
                   color: Colors.white24,
                   borderRadius: BorderRadius.circular(14)),
-              child: Text(aula.horario,
+              child: Text(item.horario,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -229,7 +266,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
         ),
       );
 
-  Widget _buildSubCard(_AulaHoje aula, double depth) => Container(
+  Widget _buildSubCard(_AgendaItem item, double depth) => Container(
         height: _subHeight,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
@@ -242,7 +279,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
           border: Border.all(color: Colors.grey.withOpacity(0.07)),
         ),
         child: Row(children: [
-          Text(aula.horario,
+          Text(item.horario,
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -253,11 +290,11 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(aula.turma.nome,
+                Text(item.title,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 13),
                     overflow: TextOverflow.ellipsis),
-                Text(aula.turma.nivel,
+                Text(item.subtitle,
                     style: const TextStyle(color: Colors.grey, fontSize: 11)),
               ],
             ),
@@ -266,10 +303,60 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
       );
 }
 
-class _AulaHoje {
-  final TurmaModel turma;
+class _AgendaItem {
+  final String kind; // 'aula' | 'evento'
   final String horario;
-  const _AulaHoje({required this.turma, required this.horario});
+  final String sortKey;
+  final TurmaModel? turma;
+  final String? nomeEvento;
+  final String? eventoId;
+
+  const _AgendaItem._({
+    required this.kind,
+    required this.horario,
+    required this.sortKey,
+    this.turma,
+    this.nomeEvento,
+    this.eventoId,
+  });
+
+  factory _AgendaItem.aula({required TurmaModel turma, required String horario}) {
+    return _AgendaItem._(
+      kind: 'aula',
+      horario: horario,
+      sortKey: _horaSort(horario),
+      turma: turma,
+    );
+  }
+
+  factory _AgendaItem.evento({
+    required String id,
+    required String nome,
+    required String horario,
+  }) {
+    return _AgendaItem._(
+      kind: 'evento',
+      horario: horario,
+      sortKey: _horaSort(horario),
+      nomeEvento: nome,
+      eventoId: id,
+    );
+  }
+
+  static String _horaSort(String horario) {
+    final m = RegExp(r'(\d{1,2}):?(\d{2})').firstMatch(horario);
+    if (m == null) return '99:99';
+    final h = int.tryParse(m.group(1) ?? '') ?? 99;
+    final min = int.tryParse(m.group(2) ?? '') ?? 99;
+    return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+  }
+
+  String get kindLabel =>
+      kind == 'evento' ? 'Evento' : (turma?.modalidade ?? 'Aula');
+
+  String get title => kind == 'evento' ? (nomeEvento ?? 'Evento') : (turma?.nome ?? '');
+
+  String get subtitle => kind == 'evento' ? 'Evento' : (turma?.nivel ?? '');
 }
 
 // =============================================================
@@ -587,7 +674,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             child: _buildBigBentoCard(
               'Recompensar Aluno',
               Icons.workspace_premium_rounded,
-              Colors.amber[700]!,
+              0,
               () => setState(() => _selectedIndex = 3),
             ),
           ),
@@ -597,15 +684,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               _buildSmallBentoCard(
                 'Solicitações',
                 Icons.notifications_active_rounded,
-                Colors.orange[800]!,
+                1,
                 () => _abrirHubSolicitacoes(context),
               ),
               const SizedBox(height: 8),
               _buildSmallBentoCard(
-                'Nova Turma',
-                Icons.add_home_work_rounded,
-                Colors.purple[400]!,
-                () => setState(() => _selectedIndex = 0),
+                'Eventos',
+                Icons.event_note_rounded,
+                2,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TeacherEventsScreen()),
+                ),
               ),
             ]),
           ),
@@ -628,15 +717,22 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
+  static const List<Color> _bentoPalette = [
+    AppTheme.primary,
+    AppTheme.secondary,
+    AppTheme.third,
+  ];
+
   Widget _buildBigBentoCard(
-      String title, IconData icon, Color color, VoidCallback onTap) {
+      String title, IconData icon, int paletteIndex, VoidCallback onTap) {
+    final bg = _bentoPalette[paletteIndex % _bentoPalette.length];
     return TapEffect(
       onTap: onTap,
       child: Container(
         height: 140,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: bg,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -650,12 +746,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircleAvatar(
-                backgroundColor: color,
-                radius: 22,
-                child: Icon(icon, color: Colors.white, size: 24)),
+              backgroundColor: Colors.white.withOpacity(0.18),
+              radius: 22,
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
             Text(title,
                 style: const TextStyle(
-                    color: AppTheme.secondary,
+                    color: Colors.white,
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
                     height: 1.1)),
@@ -666,34 +763,38 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   Widget _buildSmallBentoCard(
-      String title, IconData icon, Color color, VoidCallback onTap) =>
-      TapEffect(
-        onTap: onTap,
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6)),
-            ],
-          ),
-          child: Row(children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ]),
+      String title, IconData icon, int paletteIndex, VoidCallback onTap) {
+    final bg = _bentoPalette[paletteIndex % _bentoPalette.length];
+    return TapEffect(
+      onTap: onTap,
+      child: Container(
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6)),
+          ],
         ),
-      );
+        child: Row(children: [
+          Icon(icon, color: Colors.white, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ]),
+      ),
+    );
+  }
 
   Widget _buildTurmasSection(String uid, Color primary, Color dark) {
     return Column(

@@ -17,11 +17,13 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
+  final _dataNascController = TextEditingController();
   final _passController = TextEditingController();
   final _confirmPassController = TextEditingController();
   bool _isPassObscure = true;
   bool _isConfirmPassObscure = true;
   List<String> _modalidadesSelecionadas = [];
+  DateTime? _dataNascimento;
 
   // Modalidades carregadas uma vez no initState — não dependem de rebuild
   List<String> _modalidades = [];
@@ -42,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         .snapshots()
         .listen((snap) {
       if (!mounted) return;
-      final data = snap.data() as Map<String, dynamic>?;
+      final data = snap.data();
       setState(() {
         _modalidades = List<String>.from(data?['modalidades'] ?? []);
         _carregandoModalidades = false;
@@ -54,9 +56,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _nomeController.dispose();
     _emailController.dispose();
+    _dataNascController.dispose();
     _passController.dispose();
     _confirmPassController.dispose();
     super.dispose();
+  }
+
+  String _formatarData(DateTime d) {
+    final dia = d.day.toString().padLeft(2, '0');
+    final mes = d.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${d.year}';
+  }
+
+  Future<void> _selecionarDataNascimento() async {
+    final hoje = DateTime.now();
+    final inicial = _dataNascimento ?? DateTime(2005, 1, 1);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: inicial.isAfter(hoje) ? hoje : inicial,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: hoje,
+      helpText: 'Selecione sua data de nascimento',
+    );
+    if (picked == null) return;
+    setState(() {
+      _dataNascimento = picked;
+      _dataNascController.text = _formatarData(picked);
+    });
   }
 
   void _tentarCadastro(BuildContext context) {
@@ -85,12 +111,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_dataNascimento == null) {
+      _mostrarErro(context, 'Selecione sua data de nascimento.');
+      return;
+    }
+
     context.read<AuthBloc>().add(
           RegisterRequested(
             email,
             senha,
             nome,
             widget.tipo,
+            dataNascimento: _dataNascimento!,
             modalidade: _modalidadesSelecionadas.join(', '),
             modalidades: _modalidadesSelecionadas,
           ),
@@ -177,6 +209,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     hint: 'Email',
                     icon: Icons.alternate_email_rounded,
                     keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 15),
+                  GestureDetector(
+                    onTap: _selecionarDataNascimento,
+                    child: AbsorbPointer(
+                      child: _buildModernInput(
+                        controller: _dataNascController,
+                        hint: 'Data de Nascimento',
+                        icon: Icons.cake_outlined,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 15),
                   _buildModernInput(

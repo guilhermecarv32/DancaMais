@@ -22,7 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               .collection('usuarios')
               .doc(user.uid)
               .get();
-          final data = doc.data() as Map<String, dynamic>?;
+          final data = doc.data();
           final tipo = data?['tipo'] ?? 'aluno';
           final status = data?['status'] ?? 'ativo';
 
@@ -63,6 +63,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             'email': event.email,
             'tipo': event.tipo,
             'dataCriacao': FieldValue.serverTimestamp(),
+            'dataNascimento': Timestamp.fromDate(event.dataNascimento),
             'status': isProfessor ? 'pendente' : 'ativo',
             // Modalidade selecionada pelo professor no cadastro
             if (isProfessor && event.modalidade != null)
