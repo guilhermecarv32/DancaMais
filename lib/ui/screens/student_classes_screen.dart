@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../logic/gamification/gamification_service.dart' as gamif;
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 
@@ -771,6 +772,20 @@ class _PassoTab extends StatelessWidget {
 
   const _PassoTab({required this.turma, required this.uid});
 
+  int _calcularNivel(int xpTotal) {
+    const base = 100;
+    const fator = 1.5;
+    int nivel = 1;
+    int xpAcumulado = 0;
+    while (nivel < 99) {
+      final xpNivel = (base * (nivel * fator)).round();
+      if (xpAcumulado + xpNivel > xpTotal) break;
+      xpAcumulado += xpNivel;
+      nivel++;
+    }
+    return nivel;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (turma.passoSemanaNome == null) {
@@ -815,44 +830,227 @@ class _PassoTab extends StatelessWidget {
             const SizedBox(height: 20),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('usuarios').doc(uid)
-                  .collection('aprendizados').doc(turma.passoSemanaId).snapshots(),
+                  .collection('progressoAluno')
+                  .doc('${uid}_${turma.passoSemanaId}')
+                  .snapshots(),
               builder: (context, snap) {
-                final jaAprendeu = snap.data?.exists ?? false;
-                if (jaAprendeu) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text('Você já aprendeu este passo!',
-                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ]),
-                  );
+                final passoId = turma.passoSemanaId;
+                final passoNome = turma.passoSemanaNome;
+                if (passoId == null || passoNome == null) {
+                  return const SizedBox.shrink();
                 }
-                return TapEffect(
-                  onTap: () => _marcarAprendi(context),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+
+                final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+                final status = (data['status'] as String?) ?? '';
+                final dataAprendido = data['dataAprendido'];
+
+                final isValidado = status == StatusProgresso.validado.name;
+                final isAprendido = status == StatusProgresso.aprendido.name;
+                final isPraticado = status == StatusProgresso.emProgresso.name;
+                final isVisto =
+                    status == StatusProgresso.naoAprendido.name && dataAprendido != null;
+
+                final stage = isValidado || isAprendido
+                    ? 3
+                    : isPraticado
+                        ? 2
+                        : isVisto
+                            ? 1
+                            : 0;
+
+                Future<void> avancar() async {
+                  final db = FirebaseFirestore.instance;
+                  final docId = '${uid}_$passoId';
+
+                  if (stage == 0) {
+                    final novo = ProgressoAlunoModel(
+                      id: docId,
+                      alunoId: uid,
+                      movimentacaoId: passoId,
+                      movimentacaoNome: passoNome,
+                      modalidade: turma.modalidade,
+                      status: StatusProgresso.naoAprendido,
+                      dataAprendido: DateTime.now(),
+                      xpGanhoAluno: 0,
+                      xpGanhoValidacao: 0,
+                    );
+                    await db.collection('progressoAluno').doc(docId).set(novo.toMap());
+                    return;
+                  }
+
+                  if (stage == 1) {
+                    await db.collection('progressoAluno').doc(docId).update({
+                      'status': StatusProgresso.emProgresso.name,
+                      'dataAprendido': FieldValue.serverTimestamp(),
+                      'xpGanhoAluno': 0,
+                      'xpGanhoValidacao': 0,
+                    });
+                    return;
+                  }
+
+                  if (stage == 2) {
+                    final movSnap = await db.collection('movimentacoes').doc(passoId).get();
+                    if (!movSnap.exists) return;
+                    final mov = MovimentacaoModel.fromFirestore(movSnap);
+                    await gamif.GamificationService().registrarAprendizado(
+                      alunoId: uid,
+                      movimentacao: mov,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: const Text('🎉 +50 XP! Continue assim!'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ));
+                    }
+                  }
+                }
+
+                Future<void> voltar() async {
+                  if (stage <= 0) return;
+                  if (isValidado) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Este passo já foi validado pelo professor.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final db = FirebaseFirestore.instance;
+                  final docId = '${uid}_$passoId';
+                  final progRef = db.collection('progressoAluno').doc(docId);
+
+                  if (stage == 1) {
+                    await progRef.delete();
+                    return;
+                  }
+                  if (stage == 2) {
+                    await progRef.update({
+                      'status': StatusProgresso.naoAprendido.name,
+                      'dataAprendido': FieldValue.serverTimestamp(),
+                      'xpGanhoAluno': 0,
+                      'xpGanhoValidacao': 0,
+                    });
+                    return;
+                  }
+                  if (stage == 3) {
+                    await db.runTransaction((tx) async {
+                      final alunoRef = db.collection('usuarios').doc(uid);
+                      final alunoSnap = await tx.get(alunoRef);
+                      final alunoData = alunoSnap.data() ?? <String, dynamic>{};
+                      final xpAtual = (alunoData['xp'] as num?)?.toInt() ?? 0;
+                      final novoXP = (xpAtual - gamif.XPRecompensa.marcarAprendido)
+                          .clamp(0, 1 << 31)
+                          .toInt();
+                      final novoNivel = _calcularNivel(novoXP);
+
+                      tx.update(progRef, {
+                        'status': StatusProgresso.emProgresso.name,
+                        'xpGanhoAluno': 0,
+                        'xpGanhoValidacao': 0,
+                      });
+                      tx.update(alunoRef, {'xp': novoXP, 'nivel': novoNivel});
+                      tx.update(db.collection('movimentacoes').doc(passoId), {
+                        'totalAprenderam': FieldValue.increment(-1),
+                      });
+                    });
+                  }
+                }
+
+                final mainText = stage == 0
+                    ? 'Visto'
+                    : stage == 1
+                        ? 'Praticado'
+                        : stage == 2
+                            ? 'Aprender'
+                            : (isValidado ? 'Validado' : 'Aprendido');
+
+                final mainIcon = stage == 0
+                    ? Icons.visibility_outlined
+                    : stage == 1
+                        ? Icons.play_arrow_rounded
+                        : stage == 2
+                            ? Icons.emoji_events_rounded
+                            : Icons.check_circle_rounded;
+
+                final mainBg = stage == 0
+                    ? Colors.white
+                    : stage == 3
+                        ? AppTheme.detail
+                        : stage == 2
+                            ? AppTheme.primary
+                            : AppTheme.primary.withOpacity(0.12);
+
+                final mainFg =
+                    (stage == 2 || stage == 3) ? Colors.white : AppTheme.primary;
+
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: TapEffect(
+                        onTap: stage <= 0 ? null : voltar,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.grey.withOpacity(0.18)),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.undo_rounded, size: 20, color: Colors.grey),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.emoji_events_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('Marcar como Aprendi!',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                    ]),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TapEffect(
+                        onTap: stage >= 3 ? null : avancar,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: mainBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: stage == 0
+                                  ? Colors.grey.withOpacity(0.25)
+                                  : stage == 3
+                                      ? AppTheme.detail.withOpacity(0.35)
+                                      : AppTheme.primary.withOpacity(0.20),
+                            ),
+                            boxShadow: stage == 0
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: (stage == 3 ? AppTheme.detail : AppTheme.primary)
+                                          .withOpacity(0.22),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(mainIcon, color: mainFg, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$mainText  ($stage/3)',
+                                style: TextStyle(
+                                  color: mainFg,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -860,26 +1058,6 @@ class _PassoTab extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _marcarAprendi(BuildContext context) async {
-    final db = FirebaseFirestore.instance;
-    final batch = db.batch();
-    batch.set(
-      db.collection('usuarios').doc(uid).collection('aprendizados').doc(turma.passoSemanaId),
-      {'passoId': turma.passoSemanaId, 'passoNome': turma.passoSemanaNome, 'turmaId': turma.id,
-       'dataAprendizado': FieldValue.serverTimestamp(), 'validado': false},
-    );
-    batch.update(db.collection('usuarios').doc(uid), {'xp': FieldValue.increment(50)});
-    await batch.commit();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('🎉 +50 XP! Continue assim!'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-    }
   }
 }
 
