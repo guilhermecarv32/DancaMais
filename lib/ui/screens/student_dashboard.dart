@@ -12,7 +12,7 @@ import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
-import 'student_events_screen.dart';
+import '../widgets/student_events_sheet.dart';
 import 'student_profile_screen.dart';
 import 'student_ranking_screen.dart';
 
@@ -202,9 +202,7 @@ class _HomeScreen extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TapEffect(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const StudentEventsScreen()),
-                  ),
+                  onTap: () => showStudentEventsSheet(context),
                   child: Text(
                     'Ver calendário de eventos →',
                     style: TextStyle(

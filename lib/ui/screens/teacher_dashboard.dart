@@ -12,7 +12,7 @@ import 'teacher_steps_library_screen.dart';
 import 'teacher_badges_screen.dart';
 import 'teacher_classes_screen.dart';
 import 'teacher_profile_screen.dart';
-import 'teacher_events_screen.dart';
+import '../widgets/teacher_events_sheet.dart';
 import '../widgets/tap_effect.dart';
 
 // =============================================================
@@ -399,9 +399,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       const TeacherBadgesScreen(),
       const TeacherProfileScreen(),
     ];
-    final currentScreen = _selectedIndex == -1
-        ? TeacherEventsScreen(onClose: () => setState(() => _selectedIndex = 2))
-        : screens[_selectedIndex];
+    final currentScreen = screens[_selectedIndex];
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -695,7 +693,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 'Eventos',
                 Icons.event_note_rounded,
                 AppTheme.third,
-                () => setState(() => _selectedIndex = -1),
+                () => showTeacherEventsSheet(context),
               ),
             ]),
           ),

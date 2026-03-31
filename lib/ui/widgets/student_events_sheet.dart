@@ -1,20 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import '../widgets/tap_effect.dart';
+import 'tap_effect.dart';
 
-class StudentEventsScreen extends StatefulWidget {
-  const StudentEventsScreen({super.key});
-
-  @override
-  State<StudentEventsScreen> createState() => _StudentEventsScreenState();
+Future<void> showStudentEventsSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => const _StudentEventsSheetBody(),
+  );
 }
 
 enum _EventosViewMode { lista, meses }
 
 enum _OrdenacaoEventos { dataAsc, dataDesc, nomeAsc, nomeDesc }
 
-class _StudentEventsScreenState extends State<StudentEventsScreen>
+class _StudentEventsSheetBody extends StatefulWidget {
+  const _StudentEventsSheetBody();
+
+  @override
+  State<_StudentEventsSheetBody> createState() =>
+      _StudentEventsSheetBodyState();
+}
+
+class _StudentEventsSheetBodyState extends State<_StudentEventsSheetBody>
     with SingleTickerProviderStateMixin {
   _EventosViewMode _mode = _EventosViewMode.lista;
   _OrdenacaoEventos _ord = _OrdenacaoEventos.dataAsc;
@@ -22,26 +32,37 @@ class _StudentEventsScreenState extends State<StudentEventsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(
-              mode: _mode,
-              onModeChanged: (m) => setState(() => _mode = m),
-              ord: _ord,
-              onOrdChanged: (o) => setState(() => _ord = o),
-              ano: _ano,
-              onAnoChanged: (a) => setState(() => _ano = a),
+    final media = MediaQuery.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Material(
+          color: AppTheme.background,
+          child: SizedBox(
+            height: media.size.height * 0.92,
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Header(
+                    mode: _mode,
+                    onModeChanged: (m) => setState(() => _mode = m),
+                    ord: _ord,
+                    onOrdChanged: (o) => setState(() => _ord = o),
+                    ano: _ano,
+                    onAnoChanged: (a) => setState(() => _ano = a),
+                  ),
+                  Expanded(
+                    child: _mode == _EventosViewMode.lista
+                        ? _EventosLista(ord: _ord)
+                        : _EventosMeses(ano: _ano),
+                  ),
+                ],
+              ),
             ),
-            Expanded(
-              child: _mode == _EventosViewMode.lista
-                  ? _EventosLista(ord: _ord)
-                  : _EventosMeses(ano: _ano),
-            ),
-          ],
+          ),
         ),
       ),
     );
