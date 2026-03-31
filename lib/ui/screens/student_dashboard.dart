@@ -12,6 +12,7 @@ import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
+import 'student_events_screen.dart';
 import 'student_profile_screen.dart';
 import 'student_ranking_screen.dart';
 
@@ -196,7 +197,26 @@ class _HomeScreen extends StatelessWidget {
             _buildHeader(context, nome, nivel, xpNoNivel, xpParaSubir, progresso),
             const SizedBox(height: 2),
             _buildAgenda(uid),
-            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(25, 20, 25, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TapEffect(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const StudentEventsScreen()),
+                  ),
+                  child: Text(
+                    'Ver calendário de eventos →',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
             _buildPassosSemana(uid),
             const SizedBox(height: 24),
             _buildConquistasRecentes(uid),
