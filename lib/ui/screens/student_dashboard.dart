@@ -855,7 +855,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
       }),
     );
 
-    // Eventos do dia — aparecem para alunos também
+    // Eventos do dia — aparecem na agenda do aluno também
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day, 0, 0, 0);
     final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
@@ -867,7 +867,8 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
           .orderBy('dataHora')
           .snapshots()
           .listen((snap) {
-        final eventos = snap.docs.map((d) {
+        if (!mounted) return;
+        _eventosHoje = snap.docs.map((d) {
           final m = d.data();
           final nome = (m['nome'] as String?)?.trim() ?? '';
           final ts = m['dataHora'] as Timestamp?;
@@ -881,9 +882,6 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
             horario: h,
           );
         }).toList();
-
-        if (!mounted) return;
-        setState(() => _eventosHoje = eventos);
         _rebuildAulasFromTurmasCache();
       }),
     );
