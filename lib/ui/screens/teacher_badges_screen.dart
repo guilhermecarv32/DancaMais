@@ -156,11 +156,47 @@ class TeacherBadgesScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(conquista.nome,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppTheme.secondary)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(conquista.nome,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppTheme.secondary)),
+                      ),
+                      if (conquista.isEspecial) ...[
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.grey.withOpacity(0.18),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.pan_tool_alt_outlined,
+                                  size: 14, color: Colors.grey),
+                              SizedBox(width: 6),
+                              Text(
+                                'Manual',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 3),
                   Text(conquista.descricao,
                       style: const TextStyle(color: Colors.grey, fontSize: 12)),
