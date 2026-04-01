@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +16,7 @@ class StudentRankingScreen extends StatefulWidget {
 class _StudentRankingScreenState extends State<StudentRankingScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  StreamSubscription<QuerySnapshot>? _progressoSub;
 
   // Cache local: chave "uid|modalidade"
   final Map<String, _AprendizadosCount> _cacheCounts = {};
@@ -25,10 +28,25 @@ class _StudentRankingScreenState extends State<StudentRankingScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Mantém o ranking atualizado: quando algum progresso "aprendido" muda,
+    // limpamos o cache para forçar o recálculo das contagens.
+    _progressoSub = FirebaseFirestore.instance
+        .collection('progressoAluno')
+        .where('status', whereIn: const ['aprendido', 'validado'])
+        .snapshots()
+        .listen((_) {
+      if (!mounted) return;
+      setState(() {
+        _cacheCounts.clear();
+        _inFlight.clear();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _progressoSub?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -112,33 +130,54 @@ class _StudentRankingScreenState extends State<StudentRankingScreen>
     Query<Map<String, dynamic>> base = db
         .collection('progressoAluno')
         .where('alunoId', isEqualTo: alunoId)
-        .where('status', isEqualTo: 'aprendido');
+        // "aprendido" e "validado" contam como aprendido.
+        .where('status', whereIn: const ['aprendido', 'validado']);
 
     if (modalidade != null && modalidade.isNotEmpty && modalidade != 'Todos') {
       base = base.where('modalidade', isEqualTo: modalidade);
     }
 
-    // Contagem por tipo requer olhar os docs (sem count aggregation).
+    // Contagem por tipo: o doc de progresso não guarda o tipo,
+    // então buscamos o tipo na coleção 'movimentacoes'.
     final snap = await base.get();
+
+    final movIds = snap.docs
+        .map((d) => (d.data()['movimentacaoId'] as String?)?.trim() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (movIds.isEmpty) {
+      return const _AprendizadosCount(passos: 0, coreografias: 0);
+    }
+
+    // Firestore limita whereIn a 10 itens. Fazemos em lotes.
+    final Map<String, String> tipoPorMovId = {};
+    for (int i = 0; i < movIds.length; i += 10) {
+      final chunk = movIds.sublist(i, (i + 10).clamp(0, movIds.length));
+      final movSnap = await db
+          .collection('movimentacoes')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final d in movSnap.docs) {
+        final data = d.data();
+        final tipo = (data['tipo'] as String?)?.toLowerCase();
+        if (tipo != null && tipo.isNotEmpty) {
+          tipoPorMovId[d.id] = tipo;
+        }
+      }
+    }
 
     int passos = 0;
     int coreos = 0;
     for (final d in snap.docs) {
       final data = d.data();
-      final isPasso = (data['movimentacaoTipo'] == 'passo') ||
-          (data['tipo'] == 'passo') ||
-          (data['movimentacaoIsPasso'] == true);
-      final isCoreo = (data['movimentacaoTipo'] == 'coreografia') ||
-          (data['tipo'] == 'coreografia') ||
-          (data['movimentacaoIsCoreografia'] == true);
-
-      // Fallback: se não tiver tipo salvo, tenta inferir pela existência de campos.
-      if (isPasso) {
+      final movId = (data['movimentacaoId'] as String?)?.trim() ?? '';
+      final tipo = tipoPorMovId[movId];
+      if (tipo == 'passo') {
         passos++;
-      } else if (isCoreo) {
+      } else if (tipo == 'coreografia') {
         coreos++;
-      } else {
-        // Sem tipo: não incrementa (evita distorcer). Pode ajustar quando padronizar o schema.
       }
     }
 
