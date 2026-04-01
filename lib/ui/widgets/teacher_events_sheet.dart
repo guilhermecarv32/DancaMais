@@ -13,6 +13,15 @@ Future<void> showTeacherEventsSheet(BuildContext context) {
   );
 }
 
+Widget _force24h(BuildContext context, Widget? child) {
+  if (child == null) return const SizedBox.shrink();
+  final media = MediaQuery.of(context);
+  return MediaQuery(
+    data: media.copyWith(alwaysUse24HourFormat: true),
+    child: child,
+  );
+}
+
 enum _EventosViewMode { lista, meses }
 
 enum _OrdenacaoEventos { dataAsc, dataDesc, nomeAsc, nomeDesc }
@@ -760,6 +769,7 @@ class _EditarEventoSheetState extends State<_EditarEventoSheet> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(base),
       helpText: 'Selecione o horário',
+      builder: _force24h,
     );
     if (hora == null) return;
     setState(() {
@@ -1227,6 +1237,7 @@ class _NovoEventoSheetState extends State<_NovoEventoSheet> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(base),
       helpText: 'Selecione o horário',
+      builder: _force24h,
     );
     if (hora == null) return;
     setState(() {
