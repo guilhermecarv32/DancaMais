@@ -931,6 +931,7 @@ class _EventoMiniTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dt = evento.dataHora;
+    final isPast = dt != null && dt.isBefore(DateTime.now());
     final dia = dt == null ? '--' : dt.day.toString().padLeft(2, '0');
     final hora = dt == null
         ? '—'
@@ -939,9 +940,13 @@ class _EventoMiniTile extends StatelessWidget {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: isPast ? Colors.grey[100] : AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.10)),
+        border: Border.all(
+          color: isPast
+              ? Colors.grey.withOpacity(0.20)
+              : Colors.grey.withOpacity(0.10),
+        ),
       ),
       child: Row(
         children: [
@@ -949,15 +954,17 @@ class _EventoMiniTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.12),
+              color: isPast
+                  ? Colors.grey.withOpacity(0.18)
+                  : AppTheme.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
               child: Text(
                 dia,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.primary,
+                  color: isPast ? Colors.grey[700] : AppTheme.primary,
                 ),
               ),
             ),
@@ -970,16 +977,43 @@ class _EventoMiniTile extends StatelessWidget {
                 Text(evento.nome,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
-                        color: AppTheme.secondary)),
+                        color: isPast ? Colors.grey[700] : AppTheme.secondary)),
                 const SizedBox(height: 3),
-                Text('Evento · $hora',
-                    style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Evento · $hora',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    if (isPast) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Encerrado',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -996,6 +1030,7 @@ class _EventoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dt = evento.dataHora;
+    final isPast = dt != null && dt.isBefore(DateTime.now());
     final dataStr = dt == null
         ? 'Sem data'
         : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
@@ -1008,7 +1043,7 @@ class _EventoTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isPast ? Colors.grey[50] : Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
       ),
@@ -1018,23 +1053,53 @@ class _EventoTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.10),
+              color: isPast
+                  ? Colors.grey.withOpacity(0.18)
+                  : AppTheme.primary.withOpacity(0.10),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.event_rounded, color: AppTheme.primary),
+            child: Icon(Icons.event_rounded,
+                color: isPast ? Colors.grey[700] : AppTheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(evento.nome,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        color: AppTheme.secondary)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(evento.nome,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              color: isPast
+                                  ? Colors.grey[700]
+                                  : AppTheme.secondary)),
+                    ),
+                    if (isPast) ...[
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Encerrado',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Text(
                   loc.isEmpty
@@ -1043,7 +1108,7 @@ class _EventoTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: Colors.grey[600],
+                      color: isPast ? Colors.grey[500] : Colors.grey[600],
                       fontSize: 12,
                       fontWeight: FontWeight.w600),
                 ),
@@ -1053,7 +1118,9 @@ class _EventoTile extends StatelessWidget {
                     evento.descricao.trim(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    style: TextStyle(
+                        color: isPast ? Colors.grey[600] : Colors.grey[700],
+                        fontSize: 12),
                   ),
                 ],
               ],
