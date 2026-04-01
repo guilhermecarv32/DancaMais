@@ -291,17 +291,7 @@ class _TeacherStepsLibraryScreenState
                 ],
               ),
             ),
-            Column(
-              children: [
-                Text('${mov.totalAprenderam}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppTheme.primary)),
-                const Text('alunos',
-                    style: TextStyle(fontSize: 10, color: Colors.grey)),
-              ],
-            ),
+            _AprenderamCount(movId: mov.id, fallback: mov.totalAprenderam),
           ],
         ),
       ),
@@ -772,6 +762,56 @@ class _SelecionarTurmaPassoSemanaSheet extends StatelessWidget {
 }
 
 // ── Helper widget ─────────────────────────────────────────────
+
+class _AprenderamCount extends StatelessWidget {
+  final String movId;
+  final int fallback;
+  const _AprenderamCount({required this.movId, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    if (movId.trim().isEmpty) {
+      return _CountUi(value: fallback);
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('progressoAluno')
+          .where('movimentacaoId', isEqualTo: movId)
+          .snapshots(),
+      builder: (context, snap) {
+        final docs = snap.data?.docs ?? const [];
+        int count = 0;
+        for (final d in docs) {
+          final data = d.data() as Map<String, dynamic>? ?? const {};
+          final status = (data['status'] as String?) ?? '';
+          if (status == 'aprendido' || status == 'validado') count++;
+        }
+        return _CountUi(value: count);
+      },
+    );
+  }
+}
+
+class _CountUi extends StatelessWidget {
+  final int value;
+  const _CountUi({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text('$value',
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppTheme.primary)),
+        const Text('alunos',
+            style: TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
+    );
+  }
+}
 
 class _Tag extends StatelessWidget {
   final String label;
