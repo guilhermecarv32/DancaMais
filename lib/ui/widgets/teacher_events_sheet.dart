@@ -424,8 +424,6 @@ class _EventosMeses extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final start = DateTime(ano, 1, 1, 0, 0, 0);
-    final end = DateTime(ano, 12, 31, 23, 59, 59);
     final meses = const [
       'Janeiro',
       'Fevereiro',
@@ -445,10 +443,21 @@ class _EventosMeses extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('eventos')
           .where('criadoPorId', isEqualTo: uid)
-          .where('dataHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-          .where('dataHora', isLessThanOrEqualTo: Timestamp.fromDate(end))
           .snapshots(),
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(30),
+              child: Text(
+                'Não foi possível carregar os eventos.\n${snap.error}',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+            ),
+          );
+        }
+
         final docs = snap.data?.docs ?? [];
         final porMes = <int, List<_EventoVm>>{
           for (int m = 1; m <= 12; m++) m: []
@@ -462,6 +471,7 @@ class _EventosMeses extends StatelessWidget {
           final ts = m['dataHora'] as Timestamp?;
           final dt = ts?.toDate();
           if (dt == null) continue;
+          if (dt.year != ano) continue;
           porMes[dt.month]?.add(_EventoVm(
             id: d.id,
             nome: nome.isEmpty ? 'Evento' : nome,
