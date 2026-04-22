@@ -149,7 +149,7 @@ class _AgendaStackedScrollState extends State<AgendaStackedScroll> {
           ],
         ),
         child: Row(children: [
-          const Text('🎉', style: TextStyle(fontSize: 24)),
+          const Text('💤', style: TextStyle(fontSize: 24)),
           const SizedBox(width: 12),
           Text('Nenhuma aula hoje!',
               style: TextStyle(
