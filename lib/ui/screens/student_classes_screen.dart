@@ -590,7 +590,7 @@ class _SolicitacaoSheetState extends State<_SolicitacaoSheet> {
                     child: TextField(
                       controller: _funcaoCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Ex: Condutor, Conduzido, Ambos...',
+                        hintText: 'Ex: Condutor(a), Conduzido(a), Ambos...',
                         hintStyle: TextStyle(
                             color: Colors.grey[400], fontSize: 14),
                         border: InputBorder.none,

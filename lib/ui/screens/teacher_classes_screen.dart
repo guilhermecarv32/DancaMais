@@ -2661,7 +2661,7 @@ class _PapeisEditorState extends State<_PapeisEditor> {
                 textCapitalization: TextCapitalization.words,
                 onSubmitted: (_) => _adicionar(),
                 decoration: InputDecoration(
-                  hintText: 'Ex: Condutor, Conduzido...',
+                  hintText: 'Ex: Condutor(a), Conduzido(a)...',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(

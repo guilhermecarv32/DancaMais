@@ -967,7 +967,7 @@ class _AlunoAgendaStackedScrollState extends State<AlunoAgendaStackedScroll> {
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
         ),
         child: Row(children: [
-          const Text('🎉', style: TextStyle(fontSize: 24)),
+          const Text('💤', style: TextStyle(fontSize: 24)),
           const SizedBox(width: 12),
           Text(
             'Nenhuma aula hoje!',

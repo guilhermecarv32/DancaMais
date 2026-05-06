@@ -36,9 +36,9 @@ class TurmaModel {
 
   final int totalAlunos;
 
-  /// Papéis possíveis para um aluno nesta turma (ex: ['Condutor', 'Conduzido'])
+  /// Papéis possíveis para um aluno nesta turma (ex: ['Condutor(a)', 'Conduzido(a)'])
 
-  /// Papéis possíveis para um aluno nesta turma (ex: ['Condutor', 'Conduzido'])
+  /// Papéis possíveis para um aluno nesta turma (ex: ['Condutor(a)', 'Conduzido(a)'])
   final List<String> papeisAlunos;
 
   const TurmaModel({
