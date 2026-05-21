@@ -356,7 +356,7 @@ class _AgendaItem {
 
   String get title => kind == 'evento' ? (nomeEvento ?? 'Evento') : (turma?.nome ?? '');
 
-  String get subtitle => kind == 'evento' ? 'Evento' : (turma?.nivel ?? '');
+  String get subtitle => kind == 'evento' ? 'Evento' : (turma?.modalidade ?? '');
 }
 
 // =============================================================

@@ -233,9 +233,16 @@ class _HomeScreen extends StatelessWidget {
     double progresso,
   ) {
     final now = DateTime.now();
-    final meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-    final dias = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
-    final dataStr = '${dias[now.weekday - 1]}, ${now.day} de ${meses[now.month - 1]}';
+    const diasSemana = [
+      'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+      'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo',
+    ];
+    const meses = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ];
+    final dataStr =
+        '${diasSemana[now.weekday - 1]}, ${now.day} de ${meses[now.month - 1]} de ${now.year}';
 
     return SafeArea(
       bottom: false,
