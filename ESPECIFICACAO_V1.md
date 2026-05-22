@@ -253,8 +253,8 @@ Alternativa: derivar notificações de `feedbacks` + queries de pendências; sub
 - [x] Streak: fogo/gelo conforme tabela; 7 dias rolling; pré-cálculo em `usuarios`
 - [x] Pausa aluno: 7 dias, 1×/mês, mantém fogo, privado
 - [x] Pausa admin: toggle + agendamento + banner + sininho
-- [ ] Sininho: misturado, lido ao abrir, professor filtrado por modalidade (streaks na fase 3; feedback/validações na fase 4)
-- [ ] Feedback: com/sem passo; turma ou aluno; separado de validar; ocultar vs excluir
+- [x] Sininho: misturado, lido ao abrir, professor filtrado por modalidade
+- [x] Feedback: com/sem passo; turma ou aluno; separado de validar; ocultar vs excluir
 
 ---
 

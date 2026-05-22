@@ -70,7 +70,6 @@ class GamificationService {
     required String professorId,
     required String alunoId,
     required String movimentacaoId,
-    String? feedbackTexto,
     String? feedbackMovimentacaoNome,
   }) async {
     final progressoId = '${alunoId}_$movimentacaoId';
@@ -100,20 +99,6 @@ class GamificationService {
       });
 
       transaction.update(alunoRef, {'xp': novoXP, 'nivel': novoNivel});
-
-      if (feedbackTexto != null && feedbackTexto.isNotEmpty) {
-        final feedbackRef = _firestore.collection('feedbacks').doc();
-        transaction.set(feedbackRef, {
-          'professorId': professorId,
-          'alunoId': alunoId,
-          'texto': feedbackTexto,
-          'data': FieldValue.serverTimestamp(),
-          'movimentacaoId': movimentacaoId,
-          if (feedbackMovimentacaoNome != null)
-            'movimentacaoNome': feedbackMovimentacaoNome,
-          'validaMovimentacao': true,
-        });
-      }
     });
 
     // Verifica conquistas após validação também

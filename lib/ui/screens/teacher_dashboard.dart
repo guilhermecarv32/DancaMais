@@ -7,13 +7,16 @@ import '../../data/services/permissao_service.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
+import '../../logic/notifications/notification_service.dart';
 import '../../models/models.dart';
 import 'teacher_steps_library_screen.dart';
 import 'teacher_badges_screen.dart';
 import 'teacher_classes_screen.dart';
 import 'teacher_profile_screen.dart';
 import '../widgets/teacher_events_sheet.dart';
+import '../widgets/notifications_bell.dart';
 import '../widgets/notifications_hub_sheet.dart';
+import '../widgets/feedback_sheets.dart';
 import '../widgets/tap_effect.dart';
 
 // =============================================================
@@ -640,6 +643,25 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ],
             ),
           ),
+          StreamBuilder<PerfilProfessor>(
+            stream: PermissaoService.perfilStream(),
+            builder: (context, perfilSnap) {
+              final perfil = perfilSnap.data ??
+                  const PerfilProfessor(isAdmin: false, modalidades: []);
+              return TeacherNotificationsBell(
+                onTap: () => _abrirNotificacoes(context),
+                badgeStream: Stream.periodic(
+                  const Duration(seconds: 30),
+                  (_) => perfil,
+                ).asyncMap(
+                  (p) => NotificationService().contagemPendenciasProfessor(
+                    modalidadesFiltro: p.filtroModalidades,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           IconButton(
             onPressed: () async {
               final ok = await _confirmarLogout(context);
@@ -1654,7 +1676,18 @@ class _ValidarPassoSemanaSheetDash extends StatelessWidget {
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: 8),
+                                    FeedbackIconButton(
+                                      onTap: () => showFeedbackPassoSheet(
+                                        context,
+                                        alunoId: alunoId,
+                                        alunoNome: nome,
+                                        movimentacaoId: passoId,
+                                        movimentacaoNome: turma.passoSemanaNome,
+                                        jaValidado: isValidado,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
                                     TapEffect(
                                       onTap: () async {
                                         if (professorId.isEmpty ||
@@ -1672,8 +1705,6 @@ class _ValidarPassoSemanaSheetDash extends StatelessWidget {
                                             professorId: professorId,
                                             alunoId: alunoId,
                                             movimentacaoId: passoId,
-                                            feedbackMovimentacaoNome:
-                                                turma.passoSemanaNome,
                                           );
                                         }
                                       },

@@ -136,25 +136,27 @@ class ProgressoAlunoModel {
 class FeedbackModel {
   final String id;
   final String professorId;
-  final String professorNome;   // Denormalizado para exibição
-  final String alunoId;
+  final String professorNome;
+  final String? alunoId;
   final String texto;
   final DateTime data;
-
-  // Feedback pode ser vinculado a uma movimentação específica
+  final String tipo; // movimentacao | aluno | turma
+  final String? turmaId;
+  final String? turmaNome;
   final String? movimentacaoId;
   final String? movimentacaoNome;
-
-  // Se true, este feedback também valida a movimentação e concede XP bônus
   final bool validaMovimentacao;
 
   const FeedbackModel({
     required this.id,
     required this.professorId,
     required this.professorNome,
-    required this.alunoId,
+    this.alunoId,
     required this.texto,
     required this.data,
+    this.tipo = 'movimentacao',
+    this.turmaId,
+    this.turmaNome,
     this.movimentacaoId,
     this.movimentacaoNome,
     this.validaMovimentacao = false,
@@ -166,11 +168,14 @@ class FeedbackModel {
       id: doc.id,
       professorId: data['professorId'] ?? '',
       professorNome: data['professorNome'] ?? 'Professor',
-      alunoId: data['alunoId'] ?? '',
+      alunoId: data['alunoId'] as String?,
       texto: data['texto'] ?? '',
       data: (data['data'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      movimentacaoId: data['movimentacaoId'],
-      movimentacaoNome: data['movimentacaoNome'],
+      tipo: (data['tipo'] as String?) ?? 'movimentacao',
+      turmaId: data['turmaId'] as String?,
+      turmaNome: data['turmaNome'] as String?,
+      movimentacaoId: data['movimentacaoId'] as String?,
+      movimentacaoNome: data['movimentacaoNome'] as String?,
       validaMovimentacao: data['validaMovimentacao'] ?? false,
     );
   }
@@ -179,9 +184,12 @@ class FeedbackModel {
     return {
       'professorId': professorId,
       'professorNome': professorNome,
-      'alunoId': alunoId,
+      if (alunoId != null) 'alunoId': alunoId,
       'texto': texto,
+      'tipo': tipo,
       'data': FieldValue.serverTimestamp(),
+      if (turmaId != null) 'turmaId': turmaId,
+      if (turmaNome != null) 'turmaNome': turmaNome,
       if (movimentacaoId != null) 'movimentacaoId': movimentacaoId,
       if (movimentacaoNome != null) 'movimentacaoNome': movimentacaoNome,
       'validaMovimentacao': validaMovimentacao,

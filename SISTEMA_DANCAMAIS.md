@@ -218,6 +218,13 @@ Conquistas obtidas ficam no array `usuarios/{uid}.conquistas` e/ou subcoleção 
 - Professor: sininho **Notificações** com alertas de streak + atalhos.
 - Admin: perfil → painel **Streaks da escola**.
 
+### 5.8.2 Feedback e notificações (fase 4)
+
+- Feedback até 500 caracteres; tipos: movimentação, aluno, turma.
+- Validar/desvalidar **separado** de enviar feedback; checkbox opcional “Também validar”.
+- Subcoleção `usuarios/{uid}/notificacoes` com `lido` e `oculto`.
+- Aluno: sininho na home; professor: sininho no header + hub com validações pendentes e solicitações.
+
 ### 5.9 Eventos (calendário)
 
 **Professor:** bottom sheet `teacher_events_sheet.dart`

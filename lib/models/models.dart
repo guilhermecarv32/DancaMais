@@ -9,3 +9,4 @@ export 'conquista_model.dart';
 export 'movimentacao_model.dart';
 export 'turma_model.dart';
 export 'progresso_feedback_model.dart';
+export 'notificacao_model.dart';

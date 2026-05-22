@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
 import '../../models/models.dart';
+import '../widgets/feedback_sheets.dart';
 import '../widgets/tap_effect.dart';
 
 /// Normaliza horários para o padrão `HH:mm` ou `HH:mm - HH:mm`.
@@ -885,6 +886,18 @@ class _AlunosTurmaSheet extends StatelessWidget {
                               Text('$xp XP',
                                   style: const TextStyle(color: Colors.grey, fontSize: 11)),
                             ]),
+                            const SizedBox(width: 8),
+                            FeedbackIconButton(
+                              onTap: () {
+                                Navigator.pop(context);
+                                showFeedbackParaAlunoSheet(
+                                  context,
+                                  alunoId: alunoId,
+                                  alunoNome: nome,
+                                  turma: turma,
+                                );
+                              },
+                            ),
                             if (podeRemoverAlunos &&
                                 inscRefPorAluno.containsKey(alunoId)) ...[
                               const SizedBox(width: 10),
@@ -2042,6 +2055,9 @@ class _ValidarPassoSemanaSheet extends StatelessWidget {
                               return _ValidarToggleTile(
                                 nome: nome,
                                 isValidado: isValidado,
+                                turma: turma,
+                                alunoId: alunoId,
+                                passoId: passoId,
                                 onToggle: () async {
                                   if (professorId.isEmpty || alunoId.isEmpty) return;
                                   if (isValidado) {
@@ -2066,7 +2082,6 @@ class _ValidarPassoSemanaSheet extends StatelessWidget {
                                       professorId: professorId,
                                       alunoId: alunoId,
                                       movimentacaoId: passoId,
-                                      feedbackMovimentacaoNome: turma.passoSemanaNome,
                                     );
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -2103,11 +2118,17 @@ class _ValidarPassoSemanaSheet extends StatelessWidget {
 class _ValidarToggleTile extends StatefulWidget {
   final String nome;
   final bool isValidado;
+  final TurmaModel turma;
+  final String alunoId;
+  final String passoId;
   final Future<void> Function() onToggle;
 
   const _ValidarToggleTile({
     required this.nome,
     required this.isValidado,
+    required this.turma,
+    required this.alunoId,
+    required this.passoId,
     required this.onToggle,
   });
 
@@ -2181,7 +2202,20 @@ class _ValidarToggleTileState extends State<_ValidarToggleTile> {
             ],
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
+        FeedbackIconButton(
+          onTap: _loading
+              ? () {}
+              : () => showFeedbackPassoSheet(
+                    context,
+                    alunoId: widget.alunoId,
+                    alunoNome: nome,
+                    movimentacaoId: widget.passoId,
+                    movimentacaoNome: widget.turma.passoSemanaNome,
+                    jaValidado: isValidado,
+                  ),
+        ),
+        const SizedBox(width: 8),
         TapEffect(
           onTap: _loading
               ? null

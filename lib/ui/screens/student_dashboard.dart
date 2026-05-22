@@ -10,6 +10,7 @@ import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
 import '../widgets/student_events_sheet.dart';
+import '../widgets/notifications_bell.dart';
 import '../widgets/streak_widgets.dart';
 import '../../logic/streak/streak_service.dart';
 import 'student_profile_screen.dart';
@@ -217,8 +218,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                   xpNoNivel,
                   xpParaSubir,
                   progresso,
-                  userData: userData,
-                  escolaConfig: escolaConfig,
                 ),
                 StreakEscolaPausadaBanner(config: escolaConfig),
                 const SizedBox(height: 2),
@@ -258,10 +257,8 @@ class _HomeScreenState extends State<_HomeScreen> {
     int nivel,
     int xp,
     int xpNivel,
-    double progresso, {
-    required Map<String, dynamic> userData,
-    required EscolaStreakConfig escolaConfig,
-  }) {
+    double progresso,
+  ) {
     final now = DateTime.now();
     const diasSemana = [
       'Segunda-feira', 'Terça-feira', 'Quarta-feira',
@@ -307,30 +304,48 @@ class _HomeScreenState extends State<_HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Olá, $nome!',
-                      style: const TextStyle(
-                        color: AppTheme.secondary,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
                     Row(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.calendar_today_rounded,
-                            size: 12, color: Colors.grey[400]),
-                        const SizedBox(width: 5),
-                        Text(dataStr,
-                            style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Olá, $nome!',
+                                style: const TextStyle(
+                                  color: AppTheme.secondary,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -1,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today_rounded,
+                                      size: 12, color: Colors.grey[400]),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    dataStr,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const StudentNotificationsBell(),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -383,7 +398,42 @@ class _HomeScreenState extends State<_HomeScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final fillW = constraints.maxWidth * progresso;
+                              return Container(
+                                height: 6,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 450),
+                                    curve: Curves.easeOutCubic,
+                                    width: fillW,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          Color(0xFFFFC98A),
+                                          AppTheme.primary,
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 4),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -401,45 +451,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final fillW =
-                                        constraints.maxWidth * progresso;
-                                    return Container(
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            AppTheme.primary.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: AnimatedContainer(
-                                          duration: const Duration(
-                                              milliseconds: 450),
-                                          curve: Curves.easeOutCubic,
-                                          width: fillW,
-                                          decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                              colors: [
-                                                Color(0xFFFFC98A),
-                                                AppTheme.primary,
-                                              ],
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -463,10 +474,6 @@ class _HomeScreenState extends State<_HomeScreen> {
                     ),
                   ],
                 ),
-              ),
-              StreakHomeIcon(
-                userData: userData,
-                escolaConfig: escolaConfig,
               ),
             ],
           ),

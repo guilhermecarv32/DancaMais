@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/services/permissao_service.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
+import '../../logic/notifications/notification_service.dart';
 import '../../logic/streak/streak_service.dart';
+import '../../models/notificacao_model.dart';
 import 'tap_effect.dart';
 
 /// Sininho do professor: streaks + atalhos de solicitações + aviso de pausa global.
@@ -59,46 +61,68 @@ class NotificationsHubSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    StreamBuilder<EscolaStreakConfig>(
-                      stream: streakService.configEscolaStream(),
-                      builder: (context, escolaSnap) {
-                        final escola =
-                            escolaSnap.data ?? const EscolaStreakConfig();
-                        if (!escola.pausados) {
-                          return const SizedBox.shrink();
-                        }
-                        final ate = escola.retomarEm;
-                        final msg = ate != null
-                            ? 'Streaks pausados até ${ate.day.toString().padLeft(2, '0')}/${ate.month.toString().padLeft(2, '0')}/${ate.year}'
-                            : 'Streaks pausados pela escola';
-                        return _NotifTile(
-                          icon: Icons.pause_circle_filled_rounded,
-                          iconColor: Colors.amber[800]!,
-                          titulo: msg,
-                          subtitulo: 'Pausa global ativa',
-                        );
-                      },
-                    ),
-                    FutureBuilder<List<StreakAlertaProfessor>>(
-                      future: streakService.listarAlertasProfessor(
-                        modalidadesFiltro: modalidades,
-                      ),
-                      builder: (context, snap) {
-                        if (snap.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(
-                              child: CircularProgressIndicator(),
+              child: FutureBuilder<_ProfessorHubData>(
+                future: _carregarHub(streakService, modalidades),
+                builder: (context, snap) {
+                  if (!snap.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final data = snap.data!;
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (data.escolaPausados) ...[
+                          _NotifTile(
+                            icon: Icons.pause_circle_filled_rounded,
+                            iconColor: Colors.amber[800]!,
+                            titulo: data.escolaMsg,
+                            subtitulo: 'Pausa global ativa',
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        if (data.validacoes.isNotEmpty) ...[
+                          _SecaoTitulo('Validações pendentes'),
+                          ...data.validacoes.map(
+                            (v) => TapEffect(
+                              onTap: () {
+                                Navigator.pop(context);
+                                onValidarPasso();
+                              },
+                              child: _NotifTile(
+                                icon: Icons.verified_outlined,
+                                iconColor: Colors.orange[800]!,
+                                titulo: v.tituloExibicao,
+                                subtitulo: v.turmaNome,
+                              ),
                             ),
-                          );
-                        }
-                        final alertas = snap.data ?? [];
-                        if (alertas.isEmpty) {
-                          return Padding(
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        if (data.solicitacoes.isNotEmpty) ...[
+                          _SecaoTitulo('Solicitações de entrada'),
+                          ...data.solicitacoes.map(
+                            (s) => TapEffect(
+                              onTap: () {
+                                Navigator.pop(context);
+                                onSolicitacoesEntrada();
+                              },
+                              child: _NotifTile(
+                                icon: Icons.person_add_alt_1_rounded,
+                                iconColor: Colors.orange[800]!,
+                                titulo: (s['nomeAluno'] as String?) ??
+                                    'Aluno',
+                                subtitulo:
+                                    (s['nomeTurma'] as String?) ?? 'Turma',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        _SecaoTitulo('Streaks dos alunos'),
+                        if (data.streaks.isEmpty)
+                          Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Text(
                               'Nenhum alerta de streak no momento.',
@@ -108,40 +132,23 @@ class NotificationsHubSheet extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          );
-                        }
-                        return Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                'Streaks dos alunos',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                          )
+                        else
+                          ...data.streaks.map(
+                            (a) => _NotifTile(
+                              icon: a.estado == StreakEstado.fogo
+                                  ? Icons.local_fire_department_rounded
+                                  : Icons.ac_unit_rounded,
+                              iconColor: a.estado == StreakEstado.fogo
+                                  ? Colors.deepOrange
+                                  : Colors.lightBlue,
+                              titulo: a.tituloExibicao,
+                              subtitulo: perfil.isAdmin
+                                  ? 'Todas as modalidades'
+                                  : 'Suas modalidades',
                             ),
-                            ...alertas.map(
-                              (a) => _NotifTile(
-                                icon: a.estado == StreakEstado.fogo
-                                    ? Icons.local_fire_department_rounded
-                                    : Icons.ac_unit_rounded,
-                                iconColor: a.estado == StreakEstado.fogo
-                                    ? Colors.deepOrange
-                                    : Colors.lightBlue,
-                                titulo: a.tituloExibicao,
-                                subtitulo: perfil.isAdmin
-                                    ? 'Todas as modalidades'
-                                    : 'Suas modalidades',
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const Divider(height: 24),
+                          ),
+                        const Divider(height: 24),
                     const Text(
                       'Ações',
                       style: TextStyle(
@@ -226,11 +233,81 @@ class NotificationsHubSheet extends StatelessWidget {
                         ]),
                       ),
                     ),
-                  ],
-                ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfessorHubData {
+  final bool escolaPausados;
+  final String escolaMsg;
+  final List<StreakAlertaProfessor> streaks;
+  final List<ValidacaoPendenteItem> validacoes;
+  final List<Map<String, dynamic>> solicitacoes;
+
+  _ProfessorHubData({
+    required this.escolaPausados,
+    required this.escolaMsg,
+    required this.streaks,
+    required this.validacoes,
+    required this.solicitacoes,
+  });
+}
+
+Future<_ProfessorHubData> _carregarHub(
+  StreakService streakService,
+  List<String>? modalidades,
+) async {
+  final notifSvc = NotificationService();
+  final escola = await streakService.lerConfigEscola();
+  final streaks = await streakService.listarAlertasProfessor(
+    modalidadesFiltro: modalidades,
+  );
+  final validacoes = await notifSvc.listarValidacoesPendentes(
+    modalidadesFiltro: modalidades,
+  );
+  final solicitacoes = await notifSvc.listarSolicitacoesPendentes(
+    modalidadesFiltro: modalidades,
+  );
+
+  String escolaMsg = 'Streaks pausados pela escola';
+  if (escola.pausados && escola.retomarEm != null) {
+    final ate = escola.retomarEm!;
+    escolaMsg =
+        'Streaks pausados até ${ate.day.toString().padLeft(2, '0')}/${ate.month.toString().padLeft(2, '0')}/${ate.year}';
+  }
+
+  return _ProfessorHubData(
+    escolaPausados: escola.pausados,
+    escolaMsg: escolaMsg,
+    streaks: streaks,
+    validacoes: validacoes,
+    solicitacoes: solicitacoes,
+  );
+}
+
+class _SecaoTitulo extends StatelessWidget {
+  final String texto;
+  const _SecaoTitulo(this.texto);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
