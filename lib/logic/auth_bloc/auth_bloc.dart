@@ -73,6 +73,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             'nivel': isProfessor ? null : 1,
             'xp': isProfessor ? null : 0,
             'conquistas': isProfessor ? null : [],
+            // Novos alunos começam fora do ranking até aceitarem (opt-in).
+            if (!isProfessor) 'participaRanking': false,
           });
 
           if (isProfessor) {

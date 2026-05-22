@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../logic/auth_bloc/auth_bloc.dart';
 import '../../logic/auth_bloc/auth_event.dart';
 import '../widgets/tap_effect.dart';
+import '../../logic/streak/streak_service.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
   const TeacherProfileScreen({super.key});
@@ -308,6 +309,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                       trailing: const SizedBox.shrink()),
                   const SizedBox(height: 14),
                   _buildPainelAdmin(),
+                  const SizedBox(height: 20),
+                  _buildSectionHeader('Streaks da escola', dark,
+                      trailing: const SizedBox.shrink()),
+                  const SizedBox(height: 14),
+                  const _PainelStreaksEscolaAdmin(),
                 ],
 
                 // ── Configurações ──────────────────────────────
@@ -968,5 +974,174 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Pausa global de streaks (admin) — escola/config.
+class _PainelStreaksEscolaAdmin extends StatefulWidget {
+  const _PainelStreaksEscolaAdmin();
+
+  @override
+  State<_PainelStreaksEscolaAdmin> createState() =>
+      _PainelStreaksEscolaAdminState();
+}
+
+class _PainelStreaksEscolaAdminState extends State<_PainelStreaksEscolaAdmin> {
+  bool _salvando = false;
+  DateTime? _retomarAgendado;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: FirebaseFirestore.instance
+          .collection('escola')
+          .doc('config')
+          .snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+        final pausado = data['streaksPausados'] == true;
+        final retomarTs = data['streaksRetomarEm'];
+        DateTime? retomarEm;
+        if (retomarTs is Timestamp) retomarEm = retomarTs.toDate();
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      pausado
+                          ? 'Streaks pausados'
+                          : 'Streaks em contagem normal',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: AppTheme.secondary,
+                      ),
+                    ),
+                  ),
+                  if (_salvando)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    Switch(
+                      value: pausado,
+                      activeColor: AppTheme.primary,
+                      onChanged: (v) => _togglePausa(v),
+                    ),
+                ],
+              ),
+              if (pausado && retomarEm != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Retomada automática em '
+                  '${retomarEm.day.toString().padLeft(2, '0')}/'
+                  '${retomarEm.month.toString().padLeft(2, '0')}/'
+                  '${retomarEm.year} '
+                  '${retomarEm.hour.toString().padLeft(2, '0')}:'
+                  '${retomarEm.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                'Enquanto pausado, fogo e gelo não mudam para ninguém. '
+                'Alunos veem um aviso na home.',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _salvando ? null : _escolherRetomada,
+                icon: const Icon(Icons.schedule_rounded, size: 18),
+                label: Text(
+                  _retomarAgendado == null
+                      ? 'Agendar retomada automática'
+                      : 'Retomar em ${_fmt(_retomarAgendado!)}',
+                ),
+              ),
+              if (_retomarAgendado != null && pausado) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _salvando
+                      ? null
+                      : () => _aplicarRetomadaAgendada(),
+                  child: const Text('Salvar data de retomada'),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _togglePausa(bool pausar) async {
+    setState(() => _salvando = true);
+    final svc = StreakService();
+    if (pausar) {
+      await svc.pausarStreaksEscola(retomarEm: _retomarAgendado);
+    } else {
+      await svc.retomarStreaksEscola();
+    }
+    if (mounted) setState(() => _salvando = false);
+  }
+
+  Future<void> _escolherRetomada() async {
+    final data = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (data == null || !mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 8, minute: 0),
+    );
+    if (hora == null || !mounted) return;
+    setState(() {
+      _retomarAgendado = DateTime(
+        data.year,
+        data.month,
+        data.day,
+        hora.hour,
+        hora.minute,
+      );
+    });
+  }
+
+  Future<void> _aplicarRetomadaAgendada() async {
+    if (_retomarAgendado == null) return;
+    setState(() => _salvando = true);
+    await StreakService().pausarStreaksEscola(retomarEm: _retomarAgendado);
+    if (mounted) setState(() => _salvando = false);
   }
 }

@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/models.dart';
+import '../streak/streak_service.dart';
 
 /// Recompensas de XP para cada transição de status.
 class XPRecompensa {
   static const int marcarAprendido = 50;
-  static const int validadoProfessor = 15;
+  static const int validadoProfessor = 100;
 }
 
 /// Serviço central de gamificação.
@@ -58,7 +59,9 @@ class GamificationService {
       );
     });
 
-    return _verificarConquistas(alunoId);
+    final conquistas = await _verificarConquistas(alunoId);
+    await StreakService().recalcularEGravar(alunoId);
+    return conquistas;
   }
 
   // ─── AÇÃO DO PROFESSOR: Validar aprendizado ──────────────────────
@@ -138,7 +141,10 @@ class GamificationService {
       final alunoData = alunoSnap.data() as Map<String, dynamic>;
 
       final int xpAtual = alunoData['xp'] ?? 0;
-      final int novoXP = (xpAtual - XPRecompensa.validadoProfessor).clamp(0, 1 << 31);
+      final xpRemover = progresso.xpGanhoValidacao > 0
+          ? progresso.xpGanhoValidacao
+          : XPRecompensa.validadoProfessor;
+      final int novoXP = (xpAtual - xpRemover).clamp(0, 1 << 31);
       final int novoNivel = _calcularNivel(novoXP);
 
       transaction.update(progressoRef, {

@@ -3,16 +3,15 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/theme/app_theme.dart';
-import '../../logic/auth_bloc/auth_bloc.dart';
-import '../../logic/auth_bloc/auth_event.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 import 'student_classes_screen.dart';
 import 'student_badges_screen.dart';
 import '../widgets/student_events_sheet.dart';
+import '../widgets/streak_widgets.dart';
+import '../../logic/streak/streak_service.dart';
 import 'student_profile_screen.dart';
 import 'student_ranking_screen.dart';
 
@@ -142,61 +141,88 @@ class _StudentDashboardState extends State<StudentDashboard> {
 // HOME SCREEN
 // ─────────────────────────────────────────────────────────────────
 
-class _HomeScreen extends StatelessWidget {
+class _HomeScreen extends StatefulWidget {
   const _HomeScreen();
 
-  Future<bool> _confirmarLogout(BuildContext context) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('Sair da conta?'),
-            content: const Text('Você tem certeza que deseja sair?'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancelar')),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Sair'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  @override
+  State<_HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<_HomeScreen> {
+  bool _recalcInicialFeito = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      StreakService().recalcularEGravar(uid);
+      _recalcInicialFeito = true;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('usuarios').doc(uid).snapshots(),
-      builder: (context, userSnap) {
-        final userData = userSnap.data?.data() as Map<String, dynamic>? ?? {};
-        final nome = (userData['nome'] ?? '').toString().trim().split(' ').first;
-        final nivel = (userData['nivel'] as num?)?.toInt() ?? 1;
-        final xp = (userData['xp'] as num?)?.toInt() ?? 0;
-        int _xpAcumuladoAntesDoNivel(int nivelAtual) {
-          const base = 100;
-          const fator = 1.5;
-          int total = 0;
-          for (int n = 1; n < nivelAtual; n++) {
-            total += (base * (n * fator)).round();
-          }
-          return total;
-        }
+    if (uid.isNotEmpty && !_recalcInicialFeito) {
+      _recalcInicialFeito = true;
+      StreakService().recalcularEGravar(uid);
+    }
 
-        final xpParaSubir = (100 * nivel * 1.5).round(); // custo do nível atual → próximo
-        final xpNoNivel = (xp - _xpAcumuladoAntesDoNivel(nivel)).clamp(0, xpParaSubir);
-        final progresso = xpParaSubir > 0 ? (xpNoNivel / xpParaSubir).clamp(0.0, 1.0) : 0.0;
+    return StreamBuilder<EscolaStreakConfig>(
+      stream: StreakService().configEscolaStream(),
+      builder: (context, escolaSnap) {
+        final escolaConfig =
+            escolaSnap.data ?? const EscolaStreakConfig();
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(0, 0, 0, 150),
-          children: [
-            _buildHeader(context, nome, nivel, xpNoNivel, xpParaSubir, progresso),
-            const SizedBox(height: 2),
-            _buildAgenda(uid),
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('usuarios')
+              .doc(uid)
+              .snapshots(),
+          builder: (context, userSnap) {
+            final userData =
+                userSnap.data?.data() as Map<String, dynamic>? ?? {};
+            final nome = (userData['nome'] ?? '')
+                .toString()
+                .trim()
+                .split(' ')
+                .first;
+            final nivel = (userData['nivel'] as num?)?.toInt() ?? 1;
+            final xp = (userData['xp'] as num?)?.toInt() ?? 0;
+            int xpAcumuladoAntesDoNivel(int nivelAtual) {
+              const base = 100;
+              const fator = 1.5;
+              int total = 0;
+              for (int n = 1; n < nivelAtual; n++) {
+                total += (base * (n * fator)).round();
+              }
+              return total;
+            }
+
+            final xpParaSubir = (100 * nivel * 1.5).round();
+            final xpNoNivel =
+                (xp - xpAcumuladoAntesDoNivel(nivel)).clamp(0, xpParaSubir);
+            final progresso = xpParaSubir > 0
+                ? (xpNoNivel / xpParaSubir).clamp(0.0, 1.0)
+                : 0.0;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 150),
+              children: [
+                _buildHeader(
+                  context,
+                  nome,
+                  nivel,
+                  xpNoNivel,
+                  xpParaSubir,
+                  progresso,
+                  userData: userData,
+                  escolaConfig: escolaConfig,
+                ),
+                StreakEscolaPausadaBanner(config: escolaConfig),
+                const SizedBox(height: 2),
+                _buildAgenda(uid),
             Padding(
               padding: const EdgeInsets.fromLTRB(25, 20, 25, 6),
               child: Align(
@@ -217,8 +243,10 @@ class _HomeScreen extends StatelessWidget {
             const SizedBox(height: 18),
             _buildPassosSemana(uid),
             const SizedBox(height: 24),
-            _buildConquistasRecentes(uid),
-          ],
+                _buildConquistasRecentes(uid),
+              ],
+            );
+          },
         );
       },
     );
@@ -230,8 +258,10 @@ class _HomeScreen extends StatelessWidget {
     int nivel,
     int xp,
     int xpNivel,
-    double progresso,
-  ) {
+    double progresso, {
+    required Map<String, dynamic> userData,
+    required EscolaStreakConfig escolaConfig,
+  }) {
     final now = DateTime.now();
     const diasSemana = [
       'Segunda-feira', 'Terça-feira', 'Quarta-feira',
@@ -299,153 +329,144 @@ class _HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Container(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Seu progresso',
-                              style: TextStyle(
-                                color: Colors.grey[700],
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const Spacer(),
-                            RichText(
-                              text: TextSpan(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Seu progresso',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                children: [
-                                  TextSpan(
-                                    text: '$xp',
-                                    style: const TextStyle(
-                                      color: AppTheme.primary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                              ),
+                              const Spacer(),
+                              RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  TextSpan(
-                                    text: ' / $xpNivel XP',
+                                  children: [
+                                    TextSpan(
+                                      text: '$xp',
+                                      style: const TextStyle(
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: ' / $xpNivel XP',
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star_rounded,
+                                      size: 12, color: Colors.amber[700]),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Nível $nivel',
                                     style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[700],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.star_rounded,
-                                    size: 12, color: Colors.amber[700]),
-                                const SizedBox(width: 3),
-                                Text(
-                                  'Nível $nivel',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final fillW = constraints.maxWidth * progresso;
-                                  return Container(
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primary.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 450),
-                                        curve: Curves.easeOutCubic,
-                                        width: fillW,
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            begin: Alignment.centerLeft,
-                                            end: Alignment.centerRight,
-                                            colors: [
-                                              Color(0xFFFFC98A),
-                                              AppTheme.primary,
-                                            ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final fillW =
+                                        constraints.maxWidth * progresso;
+                                    return Container(
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppTheme.primary.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                              milliseconds: 450),
+                                          curve: Curves.easeOutCubic,
+                                          width: fillW,
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                              colors: [
+                                                Color(0xFFFFC98A),
+                                                AppTheme.primary,
+                                              ],
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
-                                          borderRadius: BorderRadius.circular(10),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Nível ${nivel + 1}',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                    );
+                                  },
                                 ),
-                                const SizedBox(width: 3),
-                                Icon(Icons.star_rounded,
-                                    size: 12, color: Colors.amber[700]),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                              ),
+                              const SizedBox(width: 8),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Nível ${nivel + 1}',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Icon(Icons.star_rounded,
+                                      size: 12, color: Colors.amber[700]),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              TapEffect(
-                onTap: () async {
-                  final ok = await _confirmarLogout(context);
-                  if (!ok) return;
-                  if (context.mounted) {
-                    context.read<AuthBloc>().add(LogoutRequested());
-                  }
-                },
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.logout_rounded, color: Colors.grey[500], size: 20),
-                ),
+              StreakHomeIcon(
+                userData: userData,
+                escolaConfig: escolaConfig,
               ),
             ],
           ),
@@ -1506,6 +1527,8 @@ class _PassoSemanaCard extends StatelessWidget {
                                                     },
                                                   );
                                                 });
+                                                await StreakService()
+                                                    .recalcularEGravar(uid);
                                               }
                                             },
                                       child: Container(
@@ -1871,6 +1894,7 @@ class _BotaoAprendi extends StatelessWidget {
                 'totalAprenderam': FieldValue.increment(-1),
               });
             });
+            await StreakService().recalcularEGravar(uid);
           }
         }
 

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
+import '../../logic/streak/streak_service.dart';
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
 
@@ -956,6 +957,7 @@ class _PassoTab extends StatelessWidget {
                         'totalAprenderam': FieldValue.increment(-1),
                       });
                     });
+                    await StreakService().recalcularEGravar(uid);
                   }
                 }
 

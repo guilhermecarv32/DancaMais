@@ -9,6 +9,9 @@ class StudentModel extends UserModel {
   final int nivel;
   final int xp;
   final List<ConquistaModel> conquistas;
+  /// Visível no ranking para outros alunos.
+  /// Firestore ausente = legado (true); cadastro novo grava false.
+  final bool participaRanking;
 
   // Melhoria: XP necessário por nível cresce progressivamente,
   // tornando a curva de progressão mais interessante.
@@ -23,6 +26,7 @@ class StudentModel extends UserModel {
     required this.nivel,
     required this.xp,
     required this.conquistas,
+    this.participaRanking = false,
   }) : super(tipo: 'aluno');
 
   /// XP necessário para chegar ao próximo nível.
@@ -76,6 +80,7 @@ class StudentModel extends UserModel {
       nivel: data['nivel'] ?? 1,
       xp: data['xp'] ?? 0,
       conquistas: conquistas,
+      participaRanking: data['participaRanking'] as bool? ?? true,
     );
   }
 
@@ -86,6 +91,7 @@ class StudentModel extends UserModel {
       'nivel': nivel,
       'xp': xp,
       'conquistas': conquistas.map((c) => c.toMap()).toList(),
+      'participaRanking': participaRanking,
     };
   }
 
@@ -94,6 +100,7 @@ class StudentModel extends UserModel {
     int? nivel,
     int? xp,
     List<ConquistaModel>? conquistas,
+    bool? participaRanking,
   }) {
     return StudentModel(
       uid: uid,
@@ -103,6 +110,7 @@ class StudentModel extends UserModel {
       nivel: nivel ?? this.nivel,
       xp: xp ?? this.xp,
       conquistas: conquistas ?? this.conquistas,
+      participaRanking: participaRanking ?? this.participaRanking,
     );
   }
 }

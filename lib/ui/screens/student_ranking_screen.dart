@@ -1,10 +1,27 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/tap_effect.dart';
+
+/// Padrão `true` quando o campo não existe (comportamento legado).
+bool participaRankingDe(Map<String, dynamic> data) =>
+    data['participaRanking'] as bool? ?? true;
+
+/// Lista pública: só alunos que participam + o próprio usuário (sempre vê a si).
+List<QueryDocumentSnapshot> filtrarAlunosRanking({
+  required List<QueryDocumentSnapshot> docs,
+  required String currentUid,
+}) {
+  return docs.where((d) {
+    if (d.id == currentUid) return true;
+    final data = d.data() as Map<String, dynamic>;
+    return participaRankingDe(data);
+  }).toList();
+}
 
 class StudentRankingScreen extends StatefulWidget {
   const StudentRankingScreen({super.key});
@@ -77,22 +94,46 @@ class _StudentRankingScreenState extends State<StudentRankingScreen>
               ),
             ),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _RankingTab(
-                    currentUid: uid,
-                    modalidade: null,
-                    carregarCounts: _carregarCountsPara,
-                  ),
-                  _RankingPorModalidadeTab(
-                    currentUid: uid,
-                    modalidadeSelecionada: _modalidadeSelecionada,
-                    onChangedModalidade: (m) =>
-                        setState(() => _modalidadeSelecionada = m),
-                    carregarCounts: _carregarCountsPara,
-                  ),
-                ],
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: uid.isEmpty
+                    ? Stream<DocumentSnapshot>.empty()
+                    : FirebaseFirestore.instance
+                        .collection('usuarios')
+                        .doc(uid)
+                        .snapshots(),
+                builder: (context, userSnap) {
+                  final userData =
+                      userSnap.data?.data() as Map<String, dynamic>?;
+                  final participa = userData == null
+                      ? true
+                      : participaRankingDe(userData);
+
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _RankingTab(
+                        currentUid: uid,
+                        modalidade: null,
+                        carregarCounts: _carregarCountsPara,
+                        viewerParticipaRanking: participa,
+                        onAtivarParticipacao: participa
+                            ? null
+                            : () => _confirmarParticipacaoRanking(),
+                      ),
+                      _RankingPorModalidadeTab(
+                        currentUid: uid,
+                        modalidadeSelecionada: _modalidadeSelecionada,
+                        onChangedModalidade: (m) =>
+                            setState(() => _modalidadeSelecionada = m),
+                        carregarCounts: _carregarCountsPara,
+                        viewerParticipaRanking: participa,
+                        onAtivarParticipacao: participa
+                            ? null
+                            : () => _confirmarParticipacaoRanking(),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -183,6 +224,47 @@ class _StudentRankingScreenState extends State<StudentRankingScreen>
 
     return _AprendizadosCount(passos: passos, coreografias: coreos);
   }
+
+  Future<void> _confirmarParticipacaoRanking() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Participar do ranking',
+          style: TextStyle(
+            color: AppTheme.secondary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: const Text(
+          'Ao participar, seu nome, nível e pontuação ficarão visíveis para '
+          'os outros usuários nas abas Geral e Por modalidade.\n\n'
+          'Esta escolha é definitiva: depois de ativar, não será possível '
+          'voltar ao modo privado.',
+          style: TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Participar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    await FirebaseFirestore.instance.collection('usuarios').doc(uid).update({
+      'participaRanking': true,
+    });
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -222,12 +304,16 @@ class _RankingTab extends StatelessWidget {
   final String? modalidade;
   final CarregarCounts carregarCounts;
   final Set<String>? allowedUids;
+  final bool viewerParticipaRanking;
+  final VoidCallback? onAtivarParticipacao;
 
   const _RankingTab({
     required this.currentUid,
     required this.modalidade,
     required this.carregarCounts,
+    required this.viewerParticipaRanking,
     this.allowedUids,
+    this.onAtivarParticipacao,
   });
 
   @override
@@ -244,9 +330,13 @@ class _RankingTab extends StatelessWidget {
         }
 
         final docs = snap.data?.docs ?? [];
-        final filtered = allowedUids == null
+        var filtered = allowedUids == null
             ? docs
             : docs.where((d) => allowedUids!.contains(d.id)).toList();
+        filtered = filtrarAlunosRanking(
+          docs: filtered,
+          currentUid: currentUid,
+        );
 
         if (filtered.isEmpty) {
           return const _EmptyRanking();
@@ -264,22 +354,33 @@ class _RankingTab extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(25, 14, 25, 140),
               children: [
-                const SizedBox(height: 30),
-                _Podio(
-                  entries: ranking.take(3).toList(),
-                  currentUid: currentUid,
-                ),
-                const SizedBox(height: 12),
+                if (!viewerParticipaRanking && onAtivarParticipacao != null) ...[
+                  _ParticiparRankingBanner(onParticipar: onAtivarParticipacao!),
+                  const SizedBox(height: 16),
+                ],
+                if (viewerParticipaRanking) ...[
+                  const SizedBox(height: 30),
+                  _Podio(
+                    entries: ranking.take(3).toList(),
+                    currentUid: currentUid,
+                    viewerParticipaRanking: true,
+                  ),
+                  const SizedBox(height: 12),
+                ] else
+                  const SizedBox(height: 16),
                 const _TabelaHeader(),
                 const SizedBox(height: 16),
                 ...ranking.asMap().entries.map((e) {
                   final pos = e.key + 1;
                   final entry = e.value;
+                  final isVoce = entry.uid == currentUid;
                   return _RankTile(
                     posicao: pos,
                     entry: entry,
-                    isVoce: entry.uid == currentUid,
-                    isTop3: pos <= 3,
+                    isVoce: isVoce,
+                    isTop3: viewerParticipaRanking && pos <= 3,
+                    exibirPosicao: viewerParticipaRanking,
+                    ocultarOutros: !viewerParticipaRanking && !isVoce,
                   );
                 }),
               ],
@@ -329,12 +430,16 @@ class _RankingPorModalidadeTab extends StatelessWidget {
   final String modalidadeSelecionada;
   final ValueChanged<String> onChangedModalidade;
   final CarregarCounts carregarCounts;
+  final bool viewerParticipaRanking;
+  final VoidCallback? onAtivarParticipacao;
 
   const _RankingPorModalidadeTab({
     required this.currentUid,
     required this.modalidadeSelecionada,
     required this.onChangedModalidade,
     required this.carregarCounts,
+    required this.viewerParticipaRanking,
+    this.onAtivarParticipacao,
   });
 
   @override
@@ -388,6 +493,8 @@ class _RankingPorModalidadeTab extends StatelessWidget {
                   currentUid: currentUid,
                   modalidade: null,
                   carregarCounts: carregarCounts,
+                  viewerParticipaRanking: viewerParticipaRanking,
+                  onAtivarParticipacao: onAtivarParticipacao,
                 ),
               ),
             ],
@@ -436,6 +543,8 @@ class _RankingPorModalidadeTab extends StatelessWidget {
                         modalidade: selected,
                         carregarCounts: carregarCounts,
                         allowedUids: alunoIds,
+                        viewerParticipaRanking: viewerParticipaRanking,
+                        onAtivarParticipacao: onAtivarParticipacao,
                       ),
                     ),
                   ],
@@ -449,14 +558,75 @@ class _RankingPorModalidadeTab extends StatelessWidget {
   }
 }
 
-class _Podio extends StatelessWidget {
-  final List<_RankEntry> entries;
-  final String currentUid;
-  const _Podio({required this.entries, required this.currentUid});
+class _ParticiparRankingBanner extends StatelessWidget {
+  final VoidCallback onParticipar;
+  const _ParticiparRankingBanner({required this.onParticipar});
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Modo privado',
+            style: TextStyle(
+              color: AppTheme.secondary,
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Você não aparece para os outros usuários. Participe do ranking '
+            'para ver posições e comparar seu desempenho.',
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: onParticipar,
+              child: const Text('Participar do ranking'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Podio extends StatelessWidget {
+  final List<_RankEntry> entries;
+  final String currentUid;
+  final bool viewerParticipaRanking;
+  const _Podio({
+    required this.entries,
+    required this.currentUid,
+    this.viewerParticipaRanking = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!viewerParticipaRanking || entries.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final first = entries.length > 0 ? entries[0] : null;
     final second = entries.length > 1 ? entries[1] : null;
     final third = entries.length > 2 ? entries[2] : null;
@@ -635,12 +805,16 @@ class _RankTile extends StatelessWidget {
   final _RankEntry entry;
   final bool isVoce;
   final bool isTop3;
+  final bool exibirPosicao;
+  final bool ocultarOutros;
 
   const _RankTile({
     required this.posicao,
     required this.entry,
     required this.isVoce,
     required this.isTop3,
+    this.exibirPosicao = true,
+    this.ocultarOutros = false,
   });
 
   @override
@@ -662,66 +836,102 @@ class _RankTile extends StatelessWidget {
               )
             : null);
 
-    return TapEffect(
-      onTap: () => _abrirDetalhesAluno(context, entry, posicao),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(18),
-          border: border,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: LayoutBuilder(
-          builder: (context, c) {
-            return Row(
+    final conteudo = Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: border,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          if (exibirPosicao)
+            _PosicaoBadge(posicao: posicao, isTop3: isTop3)
+          else
+            const SizedBox(width: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Row(
               children: [
-                _PosicaoBadge(posicao: posicao, isTop3: isTop3),
-                const SizedBox(width: 10),
+                CircleAvatar(
+                  radius: 13,
+                  backgroundColor: Colors.grey.withOpacity(0.14),
+                  child: Icon(Icons.person_rounded,
+                      size: 18, color: Colors.grey[500]),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 13,
-                        backgroundColor: Colors.grey.withOpacity(0.14),
-                        child: Icon(Icons.person_rounded,
-                            size: 18, color: Colors.grey[500]),
+                  child: Text(
+                    ocultarOutros ? 'Aluno' : _primeiroNome(entry.nome),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: ocultarOutros ? Colors.grey[500] : AppTheme.secondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _ColNum(
+                    width: 38,
+                    value: ocultarOutros ? '—' : entry.nivel.toString(),
+                    emphasis: !ocultarOutros),
+                _ColNum(
+                    width: 38,
+                    value: ocultarOutros ? '—' : entry.xp.toString()),
+                _ColNum(
+                    width: 38,
+                    value: ocultarOutros ? '—' : entry.passos.toString()),
+                _ColNum(
+                    width: 38,
+                    value: ocultarOutros ? '—' : entry.coreografias.toString()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final tile = ocultarOutros
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              children: [
+                Opacity(opacity: 0.35, child: conteudo),
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                      child: Container(
+                        color: Colors.white.withOpacity(0.45),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _primeiroNome(entry.nome),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppTheme.secondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _ColNum(
-                          width: 38,
-                          value: entry.nivel.toString(),
-                          emphasis: true),
-                      _ColNum(width: 38, value: entry.xp.toString()),
-                      _ColNum(width: 38, value: entry.passos.toString()),
-                      _ColNum(width: 38, value: entry.coreografias.toString()),
-                    ],
+                    ),
                   ),
                 ),
               ],
-            );
-          },
-        ),
-      ),
+            ),
+          )
+        : conteudo;
+
+    return TapEffect(
+      onTap: ocultarOutros
+          ? null
+          : () => _abrirDetalhesAluno(
+                context,
+                entry,
+                posicao,
+                exibirPosicao: exibirPosicao,
+              ),
+      child: tile,
     );
   }
 
@@ -733,19 +943,33 @@ class _RankTile extends StatelessWidget {
   }
 }
 
-void _abrirDetalhesAluno(BuildContext context, _RankEntry entry, int posicao) {
+void _abrirDetalhesAluno(
+  BuildContext context,
+  _RankEntry entry,
+  int posicao, {
+  bool exibirPosicao = true,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _AlunoDetalhesSheet(entry: entry, posicao: posicao),
+    builder: (_) => _AlunoDetalhesSheet(
+      entry: entry,
+      posicao: posicao,
+      exibirPosicao: exibirPosicao,
+    ),
   );
 }
 
 class _AlunoDetalhesSheet extends StatelessWidget {
   final _RankEntry entry;
   final int posicao;
-  const _AlunoDetalhesSheet({required this.entry, required this.posicao});
+  final bool exibirPosicao;
+  const _AlunoDetalhesSheet({
+    required this.entry,
+    required this.posicao,
+    this.exibirPosicao = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -814,7 +1038,8 @@ class _AlunoDetalhesSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 18),
-                _DetalheRow(label: 'Posição', value: '#$posicao'),
+                if (exibirPosicao)
+                  _DetalheRow(label: 'Posição', value: '#$posicao'),
                 _DetalheRow(label: 'Nível', value: entry.nivel.toString()),
                 _DetalheRow(label: 'XP', value: entry.xp.toString()),
                 _DetalheRow(

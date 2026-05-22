@@ -170,7 +170,7 @@ Documento: `progressoAluno/{alunoId}_{movimentacaoId}`
 | `naoAprendido` | Registro inicial (“Visto”) |
 | `emProgresso` | “Praticado” |
 | `aprendido` | Aluno concluiu; **+50 XP** |
-| `validado` | Professor confirmou; **+15 XP** bônus |
+| `validado` | Professor confirmou; **+100 XP** bônus |
 
 Transições principais em `GamificationService` e também em handlers nas telas de turma/home (com transações Firestore para XP e contador `totalAprenderam` em `movimentacoes`).
 
@@ -207,6 +207,16 @@ Conquistas obtidas ficam no array `usuarios/{uid}.conquistas` e/ou subcoleção 
 - Ordenação: nível → XP → passos aprendidos → coreografias aprendidas → nome.
 - Contagem de passos/coreos: consulta `progressoAluno` + tipo em `movimentacoes` (aprendido/validado).
 - Atualização ao mudar progresso (listener invalida cache).
+- Campo `participaRanking` em `usuarios`. Novos cadastros iniciam com `false` (opt-in na tela); contas antigas sem o campo contam como `true`. Opt-in irreversível; modo privado embaça outros e oculta posição numérica.
+
+### 5.8.1 Streaks fogo/gelo (fase 3)
+
+- Atividade: marcar passo como **aprendido** (`dataAprendido` em `progressoAluno`).
+- Campos em `usuarios`: `streakEstado`, `streakFogo`, `streakGelo`, `ultimaAtividadeAprendidoEm`, pausa pessoal.
+- Pausa global em `escola/config`: `streaksPausados`, `streaksRetomarEm`.
+- Aluno: ícone na home → detalhe + pausa pessoal (1×/mês).
+- Professor: sininho **Notificações** com alertas de streak + atalhos.
+- Admin: perfil → painel **Streaks da escola**.
 
 ### 5.9 Eventos (calendário)
 
@@ -377,7 +387,7 @@ Documentação técnica complementar (setup Firebase, dicas de debug): `README.m
 | **Coreografia** | Movimentação composta (`tipo: coreografia`) |
 | **Passo da semana** | Movimentação em destaque na turma na semana atual |
 | **Aprendido** | Aluno marcou conclusão (+50 XP) |
-| **Validado** | Professor confirmou (+15 XP) |
+| **Validado** | Professor confirmou (+100 XP) |
 | **Conquista especial** | Concedida manualmente pelo professor |
 | **Modalidade** | Estilo (ex.: Forró, K-Pop) — filtra turmas, biblioteca e ranking |
 

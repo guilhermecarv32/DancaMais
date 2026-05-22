@@ -13,6 +13,7 @@ import 'teacher_badges_screen.dart';
 import 'teacher_classes_screen.dart';
 import 'teacher_profile_screen.dart';
 import '../widgets/teacher_events_sheet.dart';
+import '../widgets/notifications_hub_sheet.dart';
 import '../widgets/tap_effect.dart';
 
 // =============================================================
@@ -683,10 +684,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           Expanded(
             child: Column(children: [
               _buildSmallBentoCard(
-                'Solicitações',
+                'Notificações',
                 Icons.notifications_active_rounded,
                 Colors.orange[800]!,
-                () => _abrirHubSolicitacoes(context),
+                () => _abrirNotificacoes(context),
               ),
               const SizedBox(height: 8),
               _buildSmallBentoCard(
@@ -700,18 +701,52 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         ]),
       );
 
-  void _abrirHubSolicitacoes(BuildContext context) {
+  void _abrirNotificacoes(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => StreamBuilder<PerfilProfessor>(
+      builder: (sheetCtx) => StreamBuilder<PerfilProfessor>(
         stream: PermissaoService.perfilStream(),
         builder: (context, snap) {
           final perfil = snap.data ??
               PerfilProfessor(isAdmin: false, modalidades: const []);
-          return _SolicitacoesHubSheet(perfil: perfil);
+          return NotificationsHubSheet(
+            perfil: perfil,
+            onValidarPasso: () => _abrirValidarPasso(context, perfil),
+            onSolicitacoesEntrada: () =>
+                _abrirSolicitacoesEntrada(context, perfil),
+          );
         },
+      ),
+    );
+  }
+
+  void _abrirValidarPasso(BuildContext context, PerfilProfessor perfil) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelecionarTurmaSheet(
+        perfil: perfil,
+        titulo: 'Validar passo da semana',
+        apenasComPassoSemana: true,
+        builder: (t) => _ValidarPassoSemanaSheetDash(turma: t),
+      ),
+    );
+  }
+
+  void _abrirSolicitacoesEntrada(
+      BuildContext context, PerfilProfessor perfil) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelecionarTurmaSheet(
+        perfil: perfil,
+        titulo: 'Solicitações de entrada',
+        apenasComPassoSemana: false,
+        builder: (t) => _SolicitacoesTurmaSheetDash(turma: t),
       ),
     );
   }
