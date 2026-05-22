@@ -386,6 +386,76 @@ class StreakService {
     alertas.sort((a, b) => b.semanas.compareTo(a.semanas));
     return alertas;
   }
+
+  /// Dados completos para o professor abrir o detalhe da streak do aluno.
+  Future<StreakDetalheProfessor?> detalheParaProfessor(String alunoId) async {
+    final doc = await _db.collection('usuarios').doc(alunoId).get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+    if ((data['tipo'] as String?) != 'aluno') return null;
+
+    final nome = (data['nome'] as String?) ?? 'Aluno';
+    final datas = await _datasAprendido(alunoId);
+    final escola = await lerConfigEscola();
+    final snap = calcular(
+      datasAprendido: datas,
+      agora: DateTime.now(),
+      escola: escola,
+      usuarioAtual: data,
+    );
+
+    final ultima = snap.ultimaAtividadeAprendidoEm ??
+        _ts(data['ultimaAtividadeAprendidoEm']);
+
+    String motivo;
+    String streakAtual;
+    switch (snap.estado) {
+      case StreakEstado.fogo:
+        final n = snap.streakFogo;
+        motivo =
+            'O aluno marcou passos como aprendidos na semana atual e manteve '
+            'atividade nas semanas anteriores'
+            '${ultima != null ? ' (última marcação: ${_fmtDataHora(ultima)})' : ''}.';
+        streakAtual =
+            'Fogo · $n semana${n == 1 ? '' : 's'} ativa${n == 1 ? '' : 's'}';
+        break;
+      case StreakEstado.gelo:
+        final n = snap.streakGelo;
+        motivo =
+            'O aluno não marcou nenhum passo como aprendido por $n semana'
+            '${n == 1 ? '' : 's'} seguida${n == 1 ? '' : 's'}'
+            '${ultima != null ? '. Última marcação: ${_fmtDataHora(ultima)}' : '.'}';
+        streakAtual =
+            'Gelo · $n semana${n == 1 ? '' : 's'} inativa${n == 1 ? '' : 's'}';
+        break;
+      case StreakEstado.neutro:
+        motivo = ultima != null
+            ? 'Sem atividade na semana atual. Última marcação: ${_fmtDataHora(ultima)}.'
+            : 'O aluno ainda não marcou passos como aprendidos.';
+        streakAtual = 'Neutro · sem sequência ativa';
+        break;
+    }
+
+    return StreakDetalheProfessor(
+      alunoId: alunoId,
+      nomeCompleto: nome,
+      estado: snap.estado,
+      streakFogo: snap.streakFogo,
+      streakGelo: snap.streakGelo,
+      ultimaAtividadeAprendidoEm: ultima,
+      motivoMudanca: motivo,
+      streakAtual: streakAtual,
+    );
+  }
+
+  static String _fmtDataHora(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final yyyy = d.year;
+    final hh = d.hour.toString().padLeft(2, '0');
+    final min = d.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/$yyyy às $hh:$min';
+  }
 }
 
 class StreakAlertaProfessor {
@@ -408,4 +478,34 @@ class StreakAlertaProfessor {
     }
     return '❄️ $primeiro — $semanas semana${semanas == 1 ? '' : 's'} sem atividade';
   }
+
+  String get resumoNotificacao {
+    if (estado == StreakEstado.fogo) {
+      return 'Streak de fogo · $semanas semana${semanas == 1 ? '' : 's'}';
+    }
+    return 'Streak de gelo · $semanas semana${semanas == 1 ? '' : 's'} sem atividade';
+  }
+}
+
+/// Detalhe de streak de um aluno (visão do professor).
+class StreakDetalheProfessor {
+  final String alunoId;
+  final String nomeCompleto;
+  final StreakEstado estado;
+  final int streakFogo;
+  final int streakGelo;
+  final DateTime? ultimaAtividadeAprendidoEm;
+  final String motivoMudanca;
+  final String streakAtual;
+
+  const StreakDetalheProfessor({
+    required this.alunoId,
+    required this.nomeCompleto,
+    required this.estado,
+    required this.streakFogo,
+    required this.streakGelo,
+    this.ultimaAtividadeAprendidoEm,
+    required this.motivoMudanca,
+    required this.streakAtual,
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/models.dart';
+import '../notifications/notification_service.dart';
 import '../streak/streak_service.dart';
 
 /// Recompensas de XP para cada transição de status.
@@ -59,6 +60,17 @@ class GamificationService {
       );
     });
 
+    final alunoDoc = await _firestore.collection('usuarios').doc(alunoId).get();
+    final alunoNome = (alunoDoc.data()?['nome'] as String?) ?? 'Aluno';
+    await NotificationService().notificarValidacaoPendente(
+      progressoId: '${alunoId}_${movimentacao.id}',
+      alunoId: alunoId,
+      alunoNome: alunoNome,
+      movimentacaoId: movimentacao.id,
+      movimentacaoNome: movimentacao.nome,
+      modalidade: movimentacao.modalidade,
+    );
+
     final conquistas = await _verificarConquistas(alunoId);
     await StreakService().recalcularEGravar(alunoId);
     return conquistas;
@@ -101,6 +113,11 @@ class GamificationService {
       transaction.update(alunoRef, {'xp': novoXP, 'nivel': novoNivel});
     });
 
+    await NotificationService().removerPorRef(
+      refId: progressoId,
+      refTipo: 'validacao_pendente',
+    );
+
     // Verifica conquistas após validação também
     await _verificarConquistas(alunoId);
   }
@@ -141,6 +158,22 @@ class GamificationService {
 
       transaction.update(alunoRef, {'xp': novoXP, 'nivel': novoNivel});
     });
+
+    final alunoDoc = await _firestore.collection('usuarios').doc(alunoId).get();
+    final alunoNome = (alunoDoc.data()?['nome'] as String?) ?? 'Aluno';
+    final movSnap =
+        await _firestore.collection('movimentacoes').doc(movimentacaoId).get();
+    final movData = movSnap.data() ?? {};
+    await NotificationService().notificarValidacaoPendente(
+      progressoId: progressoId,
+      alunoId: alunoId,
+      alunoNome: alunoNome,
+      movimentacaoId: movimentacaoId,
+      movimentacaoNome:
+          (movData['nome'] as String?) ?? progresso.movimentacaoNome,
+      modalidade:
+          (movData['modalidade'] as String?) ?? progresso.modalidade,
+    );
   }
 
   // ─── VERIFICAÇÃO DE CONQUISTAS ───────────────────────────────────

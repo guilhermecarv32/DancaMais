@@ -221,7 +221,11 @@ class _HomeScreenState extends State<_HomeScreen> {
                 ),
                 StreakEscolaPausadaBanner(config: escolaConfig),
                 const SizedBox(height: 2),
-                _buildAgenda(uid),
+                _buildAgenda(
+                  uid,
+                  userData: userData,
+                  escolaConfig: escolaConfig,
+                ),
             Padding(
               padding: const EdgeInsets.fromLTRB(25, 20, 25, 6),
               child: Align(
@@ -615,11 +619,37 @@ class _HomeScreenState extends State<_HomeScreen> {
     );
   }
 
-  Widget _buildAgenda(String uid) {
+  Widget _buildAgenda(
+    String uid, {
+    required Map<String, dynamic> userData,
+    required EscolaStreakConfig escolaConfig,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Minha Agenda'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Minha Agenda',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.secondary,
+                  ),
+                ),
+              ),
+              StreakHomeIcon(
+                userData: userData,
+                escolaConfig: escolaConfig,
+                compact: true,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 25),

@@ -643,21 +643,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               ],
             ),
           ),
-          StreamBuilder<PerfilProfessor>(
-            stream: PermissaoService.perfilStream(),
-            builder: (context, perfilSnap) {
-              final perfil = perfilSnap.data ??
-                  const PerfilProfessor(isAdmin: false, modalidades: []);
+          Builder(
+            builder: (context) {
+              final profUid =
+                  FirebaseAuth.instance.currentUser?.uid ?? '';
               return TeacherNotificationsBell(
                 onTap: () => _abrirNotificacoes(context),
-                badgeStream: Stream.periodic(
-                  const Duration(seconds: 30),
-                  (_) => perfil,
-                ).asyncMap(
-                  (p) => NotificationService().contagemPendenciasProfessor(
-                    modalidadesFiltro: p.filtroModalidades,
-                  ),
-                ),
+                badgeStream: profUid.isEmpty
+                    ? null
+                    : NotificationService().streamBadgeProfessor(profUid),
               );
             },
           ),
@@ -1453,6 +1447,11 @@ class _SolicitacoesTurmaSheetDash extends StatelessWidget {
         .doc(solId));
 
     await batch.commit();
+
+    await NotificationService().removerPorRef(
+      refId: 'sol_${turma.id}_$alunoId',
+      refTipo: 'solicitacao',
+    );
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

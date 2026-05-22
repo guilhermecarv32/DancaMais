@@ -263,26 +263,16 @@ class FeedbackIconButton extends StatelessWidget {
     return TapEffect(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppTheme.primary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.rate_review_rounded, size: 16, color: AppTheme.primary),
-            SizedBox(width: 4),
-            Text(
-              'Feedback',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ],
+        child: const Icon(
+          Icons.rate_review_rounded,
+          size: 18,
+          color: AppTheme.primary,
         ),
       ),
     );

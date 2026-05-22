@@ -16,15 +16,19 @@ StreakEstado streakEstadoDe(Map<String, dynamic> userData) {
   };
 }
 
-/// Ícone da streak na home do aluno.
+/// Ícone da streak do aluno (home completo ou compacto na agenda).
 class StreakHomeIcon extends StatelessWidget {
   final Map<String, dynamic> userData;
   final EscolaStreakConfig escolaConfig;
+
+  /// Versão na linha "Minha Agenda": ícone estático + só o número de semanas.
+  final bool compact;
 
   const StreakHomeIcon({
     super.key,
     required this.userData,
     required this.escolaConfig,
+    this.compact = false,
   });
 
   StreakEstado get _estado => streakEstadoDe(userData);
@@ -34,6 +38,12 @@ class StreakHomeIcon extends StatelessWidget {
               ? (userData['streakFogo'] as num?)?.toInt()
               : (userData['streakGelo'] as num?)?.toInt()) ??
       0;
+
+  int get _semanasExibidas {
+    if (_estado == StreakEstado.neutro) return 0;
+    final n = _semanas;
+    return n < 1 ? 1 : n;
+  }
 
   String get _legenda {
     if (_estado == StreakEstado.neutro) {
@@ -47,51 +57,80 @@ class StreakHomeIcon extends StatelessWidget {
     return '$n semana$plural inativo(a)...';
   }
 
+  (IconData, Color) get _iconECor => switch (_estado) {
+        StreakEstado.fogo => (
+            Icons.local_fire_department_rounded,
+            Colors.deepOrange,
+          ),
+        StreakEstado.gelo => (
+            Icons.ac_unit_rounded,
+            Colors.lightBlue,
+          ),
+        StreakEstado.neutro => (
+            Icons.local_fire_department_rounded,
+            Colors.grey,
+          ),
+      };
+
+  void _abrirDetalhe(BuildContext context) {
+    showStreakDetalheSheet(
+      context,
+      userData: userData,
+      escolaConfig: escolaConfig,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final (icon, color) = switch (_estado) {
-      StreakEstado.fogo => (
-          Icons.local_fire_department_rounded,
-          Colors.deepOrange,
-        ),
-      StreakEstado.gelo => (
-          Icons.ac_unit_rounded,
-          Colors.lightBlue,
-        ),
-      StreakEstado.neutro => (
-          Icons.local_fire_department_rounded,
-          Colors.grey,
-        ),
-    };
+    final (icon, color) = _iconECor;
 
-    return TapEffect(
-      onTap: () => showStreakDetalheSheet(
-        context,
-        userData: userData,
-        escolaConfig: escolaConfig,
-      ),
-      child: Column(
+    if (compact) {
+      return TapEffect(
+        onTap: () => _abrirDetalhe(context),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _AnimatedStreakIcon(estado: _estado, icon: icon, color: color),
-            const SizedBox(height: 2),
-            SizedBox(
-              width: 72,
-              child: Text(
-                _legenda,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                ),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 3),
+            Text(
+              '$_semanasExibidas',
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                height: 1,
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return TapEffect(
+      onTap: () => _abrirDetalhe(context),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _AnimatedStreakIcon(estado: _estado, icon: icon, color: color),
+          const SizedBox(height: 2),
+          SizedBox(
+            width: 72,
+            child: Text(
+              _legenda,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -106,6 +145,8 @@ void showStreakDetalheSheet(
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (ctx) {
@@ -115,6 +156,12 @@ void showStreakDetalheSheet(
         child: Stack(
           fit: StackFit.expand,
           children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                behavior: HitTestBehavior.opaque,
+              ),
+            ),
             if (estado == StreakEstado.fogo || estado == StreakEstado.gelo)
               IgnorePointer(
                 child: _StreakScreenEdgeEffect(estado: estado),
@@ -131,6 +178,201 @@ void showStreakDetalheSheet(
       );
     },
   );
+}
+
+/// Detalhe da streak de um aluno (professor).
+void showProfessorStreakAlertaDetalhe(
+  BuildContext context, {
+  required String alunoId,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => FutureBuilder<StreakDetalheProfessor?>(
+      future: StreakService().detalheParaProfessor(alunoId),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(32),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        final detalhe = snap.data;
+        if (detalhe == null) {
+          return Container(
+            padding: const EdgeInsets.fromLTRB(25, 24, 25, 32),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: const Text(
+              'Não foi possível carregar os dados da streak.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          );
+        }
+        return _ProfessorStreakDetalheSheet(detalhe: detalhe);
+      },
+    ),
+  );
+}
+
+class _ProfessorStreakDetalheSheet extends StatelessWidget {
+  final StreakDetalheProfessor detalhe;
+
+  const _ProfessorStreakDetalheSheet({required this.detalhe});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icone, cor) = switch (detalhe.estado) {
+      StreakEstado.fogo => (
+          Icons.local_fire_department_rounded,
+          Colors.deepOrange,
+        ),
+      StreakEstado.gelo => (
+          Icons.ac_unit_rounded,
+          Colors.lightBlue,
+        ),
+      StreakEstado.neutro => (
+          Icons.local_fire_department_rounded,
+          Colors.grey,
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 30),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Icon(icone, color: cor, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    detalhe.nomeCompleto,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _DetalheLinha(
+              rotulo: 'Streak atual',
+              valor: detalhe.streakAtual,
+              destaque: true,
+              cor: cor,
+            ),
+            const SizedBox(height: 12),
+            _DetalheLinha(
+              rotulo: 'O que mudou',
+              valor: detalhe.motivoMudanca,
+            ),
+            if (detalhe.estado == StreakEstado.fogo && detalhe.streakFogo > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Semanas ativas consecutivas: ${detalhe.streakFogo}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (detalhe.estado == StreakEstado.gelo && detalhe.streakGelo > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Semanas inativas consecutivas: ${detalhe.streakGelo}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetalheLinha extends StatelessWidget {
+  final String rotulo;
+  final String valor;
+  final bool destaque;
+  final Color? cor;
+
+  const _DetalheLinha({
+    required this.rotulo,
+    required this.valor,
+    this.destaque = false,
+    this.cor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          rotulo,
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          valor,
+          style: TextStyle(
+            color: destaque ? (cor ?? AppTheme.primary) : Colors.grey[800],
+            fontSize: destaque ? 15 : 14,
+            fontWeight: destaque ? FontWeight.w800 : FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _StreakDetalheSheet extends StatefulWidget {

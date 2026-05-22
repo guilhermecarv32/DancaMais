@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/gamification/gamification_service.dart' as gamif;
+import '../../logic/notifications/notification_service.dart';
 import '../../logic/streak/streak_service.dart';
 import '../../models/models.dart';
 import '../widgets/tap_effect.dart';
@@ -384,6 +385,14 @@ class _SolicitacaoSheetState extends State<_SolicitacaoSheet> {
       'funcao': _funcaoCtrl.text.trim().isEmpty ? null : _funcaoCtrl.text.trim(),
       'dataSolicitacao': FieldValue.serverTimestamp(),
     });
+
+    await NotificationService().notificarSolicitacaoEntrada(
+      turmaId: widget.turma.id,
+      turmaNome: widget.turma.nome,
+      modalidade: widget.turma.modalidade,
+      alunoId: widget.uid,
+      alunoNome: nomeAluno.toString(),
+    );
 
     if (mounted) Navigator.pop(context);
     if (mounted) {
