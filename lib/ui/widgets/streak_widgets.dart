@@ -1,9 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../logic/streak/streak_service.dart';
 import 'tap_effect.dart';
+
+StreakEstado streakEstadoDe(Map<String, dynamic> userData) {
+  final s = (userData['streakEstado'] as String?) ?? 'neutro';
+  return switch (s) {
+    'fogo' => StreakEstado.fogo,
+    'gelo' => StreakEstado.gelo,
+    _ => StreakEstado.neutro,
+  };
+}
 
 /// Ícone da streak na home do aluno.
 class StreakHomeIcon extends StatelessWidget {
@@ -16,14 +27,7 @@ class StreakHomeIcon extends StatelessWidget {
     required this.escolaConfig,
   });
 
-  StreakEstado get _estado {
-    final s = (userData['streakEstado'] as String?) ?? 'neutro';
-    return switch (s) {
-      'fogo' => StreakEstado.fogo,
-      'gelo' => StreakEstado.gelo,
-      _ => StreakEstado.neutro,
-    };
-  }
+  StreakEstado get _estado => streakEstadoDe(userData);
 
   int get _semanas =>
       (_estado == StreakEstado.fogo
@@ -69,7 +73,7 @@ class StreakHomeIcon extends StatelessWidget {
       child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 34),
+            _AnimatedStreakIcon(estado: _estado, icon: icon, color: color),
             const SizedBox(height: 2),
             SizedBox(
               width: 72,
@@ -97,14 +101,35 @@ void showStreakDetalheSheet(
   required Map<String, dynamic> userData,
   required EscolaStreakConfig escolaConfig,
 }) {
+  final estado = streakEstadoDe(userData);
+
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _StreakDetalheSheet(
-      userData: userData,
-      escolaConfig: escolaConfig,
-    ),
+    barrierColor: Colors.black.withValues(alpha: 0.45),
+    builder: (ctx) {
+      final h = MediaQuery.of(ctx).size.height;
+      return SizedBox(
+        height: h,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (estado == StreakEstado.fogo || estado == StreakEstado.gelo)
+              IgnorePointer(
+                child: _StreakScreenEdgeEffect(estado: estado),
+              ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _StreakDetalheSheet(
+                userData: userData,
+                escolaConfig: escolaConfig,
+              ),
+            ),
+          ],
+        ),
+      );
+    },
   );
 }
 
@@ -198,7 +223,12 @@ class _StreakDetalheSheetState extends State<_StreakDetalheSheet> {
             ),
             Row(
               children: [
-                Icon(icone, color: cor, size: 28),
+                _AnimatedStreakIcon(
+                  estado: streakEstadoDe(widget.userData),
+                  icon: icone,
+                  color: cor,
+                  size: 28,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   titulo,
@@ -380,4 +410,301 @@ class StreakEscolaPausadaBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Ícone animado (fogo / gelo) ─────────────────────────────────
+
+class _AnimatedStreakIcon extends StatefulWidget {
+  final StreakEstado estado;
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  const _AnimatedStreakIcon({
+    required this.estado,
+    required this.icon,
+    required this.color,
+    this.size = 34,
+  });
+
+  @override
+  State<_AnimatedStreakIcon> createState() => _AnimatedStreakIconState();
+}
+
+class _AnimatedStreakIconState extends State<_AnimatedStreakIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    if (widget.estado != StreakEstado.neutro) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedStreakIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.estado == StreakEstado.neutro) {
+      _ctrl.stop();
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.estado == StreakEstado.neutro) {
+      return Icon(widget.icon, color: widget.color, size: widget.size);
+    }
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final t = _ctrl.value;
+        final pulse = 0.88 + 0.12 * math.sin(t * math.pi);
+        final glow = widget.estado == StreakEstado.fogo
+            ? 0.35 + 0.45 * t
+            : 0.25 + 0.35 * t;
+
+        final glowColor = widget.estado == StreakEstado.fogo
+            ? const Color(0xFFFF6D00)
+            : const Color(0xFF4FC3F7);
+
+        return SizedBox(
+          width: widget.size + 16,
+          height: widget.size + 16,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: widget.size * pulse,
+                height: widget.size * pulse,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: glowColor.withValues(alpha: glow),
+                      blurRadius: widget.estado == StreakEstado.fogo ? 14 : 10,
+                      spreadRadius: widget.estado == StreakEstado.fogo ? 3 : 1,
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.estado == StreakEstado.fogo)
+                ..._particulasFogo(t, widget.size),
+              Transform.scale(
+                scale: 0.94 + 0.06 * t,
+                child: Icon(
+                  widget.icon,
+                  color: Color.lerp(
+                    widget.color,
+                    widget.estado == StreakEstado.fogo
+                        ? const Color(0xFFFFAB40)
+                        : Colors.white,
+                    0.35 * t,
+                  ),
+                  size: widget.size,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _particulasFogo(double t, double size) {
+    return List.generate(3, (i) {
+      final phase = (t + i * 0.33) % 1.0;
+      final dy = -4 - phase * 10;
+      final dx = (i - 1) * 6.0;
+      return Positioned(
+        top: size * 0.2 + dy,
+        left: size * 0.5 + dx - 2,
+        child: Opacity(
+          opacity: (1 - phase).clamp(0.0, 1.0) * 0.7,
+          child: Icon(
+            Icons.circle,
+            size: 3 + phase * 2,
+            color: const Color(0xFFFFD54F),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+// ─── Bordas laterais (sheet de detalhes) ─────────────────────────
+
+class _StreakScreenEdgeEffect extends StatefulWidget {
+  final StreakEstado estado;
+
+  const _StreakScreenEdgeEffect({required this.estado});
+
+  @override
+  State<_StreakScreenEdgeEffect> createState() =>
+      _StreakScreenEdgeEffectState();
+}
+
+class _StreakScreenEdgeEffectState extends State<_StreakScreenEdgeEffect>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFogo = widget.estado == StreakEstado.fogo;
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final wave = 0.5 + 0.5 * math.sin(_ctrl.value * 2 * math.pi);
+        final wave2 = 0.5 + 0.5 * math.sin(_ctrl.value * 2 * math.pi + 1.2);
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _edgeStrip(isFogo: isFogo, intensity: wave, mirror: false),
+            const Spacer(),
+            _edgeStrip(isFogo: isFogo, intensity: wave2, mirror: true),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _edgeStrip({
+    required bool isFogo,
+    required double intensity,
+    required bool mirror,
+  }) {
+    const width = 36.0;
+
+    if (isFogo) {
+      return Container(
+        width: width,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: mirror ? Alignment.centerRight : Alignment.centerLeft,
+            end: mirror ? Alignment.centerLeft : Alignment.centerRight,
+            colors: [
+              Color.lerp(
+                const Color(0xFFFF5722),
+                const Color(0xFFFFD54F),
+                intensity * 0.5,
+              )!.withValues(alpha: 0.55 + 0.35 * intensity),
+              Color.lerp(
+                const Color(0xFFFF9800),
+                const Color(0xFFFFEB3B),
+                intensity * 0.3,
+              )!.withValues(alpha: 0.2 + 0.15 * intensity),
+              Colors.transparent,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  const Color(0xFFFF6D00).withValues(alpha: 0.35 * intensity),
+              blurRadius: 24,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: width,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: mirror ? Alignment.centerRight : Alignment.centerLeft,
+                end: mirror ? Alignment.centerLeft : Alignment.centerRight,
+                colors: [
+                  Color.lerp(
+                    const Color(0xFF81D4FA),
+                    const Color(0xFFE1F5FE),
+                    intensity * 0.6,
+                  )!.withValues(alpha: 0.5 + 0.3 * intensity),
+                  const Color(0xFF4FC3F7)
+                      .withValues(alpha: 0.15 + 0.12 * intensity),
+                  Colors.transparent,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF29B6F6)
+                      .withValues(alpha: 0.25 * intensity),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          CustomPaint(
+            painter: _FrostEdgePainter(intensity: intensity, mirror: mirror),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FrostEdgePainter extends CustomPainter {
+  final double intensity;
+  final bool mirror;
+
+  _FrostEdgePainter({required this.intensity, required this.mirror});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final rng = math.Random(7);
+
+    for (int i = 0; i < 18; i++) {
+      final y = rng.nextDouble() * size.height;
+      final r = 1.5 + rng.nextDouble() * 2.5;
+      final x = mirror
+          ? size.width - 4 - rng.nextDouble() * 8
+          : 4 + rng.nextDouble() * 8;
+      paint.color = Colors.white.withValues(
+        alpha: (0.15 + 0.25 * intensity) * rng.nextDouble(),
+      );
+      canvas.drawCircle(Offset(x, y), r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FrostEdgePainter old) =>
+      old.intensity != intensity || old.mirror != mirror;
 }
