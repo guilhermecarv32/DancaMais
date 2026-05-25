@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../notifications/notification_service.dart';
 
 /// Estado visual da streak do aluno.
 enum StreakEstado { fogo, gelo, neutro }
@@ -188,7 +189,7 @@ class StreakService {
     await _aplicarRetomadaAutomatica(snap);
     final refreshed = await _db.collection('escola').doc('config').get();
     return EscolaStreakConfig.fromMap(
-      refreshed.data() as Map<String, dynamic>?,
+      refreshed.data(),
     );
   }
 
@@ -197,7 +198,7 @@ class StreakService {
       (snap) async {
         await _aplicarRetomadaAutomatica(snap);
         return EscolaStreakConfig.fromMap(
-          snap.data() as Map<String, dynamic>?,
+          snap.data(),
         );
       },
     );
@@ -236,17 +237,19 @@ class StreakService {
     final escola = await lerConfigEscola();
     if (escola.pausados) return;
 
+    final agora = DateTime.now();
     final userSnap = await _db.collection('usuarios').doc(alunoId).get();
     final userData = userSnap.data();
+    final anterior = _lerSnapshotSalvo(userData);
     final pausaAte = _ts(userData?['pausaStreakAte']);
-    if (pausaAte != null && DateTime.now().isBefore(pausaAte)) {
+    if (pausaAte != null && agora.isBefore(pausaAte)) {
       return;
     }
 
     final datas = await _datasAprendido(alunoId);
     final snap = calcular(
       datasAprendido: datas,
-      agora: DateTime.now(),
+      agora: agora,
       escola: escola,
       usuarioAtual: userData,
     );
@@ -263,7 +266,116 @@ class StreakService {
     }
 
     await _db.collection('usuarios').doc(alunoId).update(update);
+    await _notificarEventosStreak(alunoId, userData, anterior, snap, agora);
   }
+
+  Future<void> _notificarEventosStreak(
+    String alunoId,
+    Map<String, dynamic>? userData,
+    StreakSnapshot anterior,
+    StreakSnapshot atual,
+    DateTime agora,
+  ) async {
+    final nome = (userData?['nome'] as String?) ?? 'Aluno';
+    final primeiroNome = nome.trim().split(RegExp(r'\s+')).first;
+    final eventos = _eventosNotificacaoStreak(
+      anterior,
+      atual,
+      agora,
+      primeiroNome.isEmpty ? 'Aluno' : primeiroNome,
+    );
+    if (eventos.isEmpty) return;
+
+    final notifs = NotificationService();
+    for (final evento in eventos) {
+      await notifs.notificarStreakAlerta(
+        alunoId: alunoId,
+        titulo: evento.titulo,
+        corpo: evento.corpo,
+        eventoKey: evento.eventoKey,
+      );
+    }
+  }
+
+  List<_StreakEventoNotificacao> _eventosNotificacaoStreak(
+    StreakSnapshot anterior,
+    StreakSnapshot atual,
+    DateTime agora,
+    String primeiroNome,
+  ) {
+    final eventos = <_StreakEventoNotificacao>[];
+    final semanasAtuais = _semanasDaStreak(atual);
+    final referencia = _referenciaEvento(atual, agora);
+
+    if (anterior.estado != atual.estado) {
+      final de = estadoParaFirestore(anterior.estado);
+      final para = estadoParaFirestore(atual.estado);
+      eventos.add(_StreakEventoNotificacao(
+        eventoKey: 'mudanca_${de}_${para}_${semanasAtuais}_$referencia',
+        titulo: _tituloMudancaEstado(atual, primeiroNome),
+        corpo: _corpoMudancaEstado(atual),
+      ));
+    }
+
+    final semanasAnteriores =
+        anterior.estado == atual.estado ? _semanasDaStreak(anterior) : 0;
+    final completouTresSemanas = atual.estado != StreakEstado.neutro &&
+        semanasAnteriores < 3 &&
+        semanasAtuais >= 3;
+    if (completouTresSemanas) {
+      eventos.add(_StreakEventoNotificacao(
+        eventoKey: 'marco3_${estadoParaFirestore(atual.estado)}_$referencia',
+        titulo: _tituloMarcoTresSemanas(atual, primeiroNome),
+        corpo: _corpoMarcoTresSemanas(atual),
+      ));
+    }
+
+    return eventos;
+  }
+
+  int _semanasDaStreak(StreakSnapshot snap) => switch (snap.estado) {
+        StreakEstado.fogo => snap.streakFogo,
+        StreakEstado.gelo => snap.streakGelo,
+        StreakEstado.neutro => 0,
+      };
+
+  int _referenciaEvento(StreakSnapshot snap, DateTime agora) =>
+      snap.ultimaAtividadeAprendidoEm?.millisecondsSinceEpoch ??
+      chaveSemana(agora);
+
+  String _tituloMudancaEstado(
+    StreakSnapshot snap,
+    String primeiroNome,
+  ) =>
+      switch (snap.estado) {
+        StreakEstado.fogo => '🔥 $primeiroNome — streak mudou para fogo',
+        StreakEstado.gelo => '❄️ $primeiroNome — streak mudou para gelo',
+        StreakEstado.neutro => '$primeiroNome — streak ficou neutra',
+      };
+
+  String _corpoMudancaEstado(StreakSnapshot snap) {
+    final semanas = _semanasDaStreak(snap);
+    return switch (snap.estado) {
+      StreakEstado.fogo =>
+        'Aluno entrou em fogo · $semanas semana${semanas == 1 ? '' : 's'} ativa${semanas == 1 ? '' : 's'}',
+      StreakEstado.gelo =>
+        'Aluno entrou em gelo · $semanas semana${semanas == 1 ? '' : 's'} sem atividade',
+      StreakEstado.neutro => 'Aluno perdeu a streak ativa e ficou neutro',
+    };
+  }
+
+  String _tituloMarcoTresSemanas(
+    StreakSnapshot snap,
+    String primeiroNome,
+  ) =>
+      snap.estado == StreakEstado.fogo
+          ? '🔥 $primeiroNome — 3 semanas de fogo'
+          : '❄️ $primeiroNome — 3 semanas de gelo';
+
+  String _corpoMarcoTresSemanas(StreakSnapshot snap) =>
+      snap.estado == StreakEstado.fogo
+          ? 'Aluno completou 3 semanas na mesma streak de fogo'
+          : 'Aluno completou 3 semanas na mesma streak de gelo';
 
   /// Pausa pessoal: 7 dias, 1× por mês civil, privada.
   Future<String?> ativarPausaPessoal(String alunoId) async {
@@ -307,7 +419,10 @@ class StreakService {
     } else {
       update['streaksRetomarEm'] = FieldValue.delete();
     }
-    await _db.collection('escola').doc('config').set(update, SetOptions(merge: true));
+    await _db
+        .collection('escola')
+        .doc('config')
+        .set(update, SetOptions(merge: true));
   }
 
   Future<void> retomarStreaksEscola() async {
@@ -322,9 +437,7 @@ class StreakService {
   Future<Set<String>> alunosNoEscopoProfessor({
     required List<String>? modalidadesFiltro,
   }) async {
-    Query<Map<String, dynamic>> turmasQ =
-        _db.collection('turmas');
-    final turmasSnap = await turmasQ.get();
+    final turmasSnap = await _db.collection('turmas').get();
     final turmaIds = <String>{};
     for (final t in turmasSnap.docs) {
       final mod = (t.data()['modalidade'] as String?) ?? '';
@@ -346,45 +459,15 @@ class StreakService {
     return alunoIds;
   }
 
-  /// Alertas de streak para o sininho do professor.
-  Future<List<StreakAlertaProfessor>> listarAlertasProfessor({
+  /// Ao abrir o sininho, força o recálculo para capturar mudanças por inatividade.
+  Future<void> recalcularAlunosNoEscopoProfessor({
     required List<String>? modalidadesFiltro,
   }) async {
     final alunoIds =
         await alunosNoEscopoProfessor(modalidadesFiltro: modalidadesFiltro);
-    if (alunoIds.isEmpty) return [];
-
-    final alertas = <StreakAlertaProfessor>[];
-    for (final id in alunoIds) {
-      final doc = await _db.collection('usuarios').doc(id).get();
-      if (!doc.exists) continue;
-      final data = doc.data()!;
-      if ((data['tipo'] as String?) != 'aluno') continue;
-
-      final estado = (data['streakEstado'] as String?) ?? 'neutro';
-      final fogo = (data['streakFogo'] as num?)?.toInt() ?? 0;
-      final gelo = (data['streakGelo'] as num?)?.toInt() ?? 0;
-      final nome = (data['nome'] as String?) ?? 'Aluno';
-
-      if (estado == 'fogo' && fogo > 0) {
-        alertas.add(StreakAlertaProfessor(
-          alunoId: id,
-          nome: nome,
-          estado: StreakEstado.fogo,
-          semanas: fogo,
-        ));
-      } else if (estado == 'gelo' && gelo >= 2) {
-        alertas.add(StreakAlertaProfessor(
-          alunoId: id,
-          nome: nome,
-          estado: StreakEstado.gelo,
-          semanas: gelo,
-        ));
-      }
+    for (final alunoId in alunoIds) {
+      await recalcularEGravar(alunoId);
     }
-
-    alertas.sort((a, b) => b.semanas.compareTo(a.semanas));
-    return alertas;
   }
 
   /// Dados completos para o professor abrir o detalhe da streak do aluno.
@@ -421,8 +504,7 @@ class StreakService {
         break;
       case StreakEstado.gelo:
         final n = snap.streakGelo;
-        motivo =
-            'O aluno não marcou nenhum passo como aprendido por $n semana'
+        motivo = 'O aluno não marcou nenhum passo como aprendido por $n semana'
             '${n == 1 ? '' : 's'} seguida${n == 1 ? '' : 's'}'
             '${ultima != null ? '. Última marcação: ${_fmtDataHora(ultima)}' : '.'}';
         streakAtual =
@@ -458,33 +540,16 @@ class StreakService {
   }
 }
 
-class StreakAlertaProfessor {
-  final String alunoId;
-  final String nome;
-  final StreakEstado estado;
-  final int semanas;
+class _StreakEventoNotificacao {
+  final String eventoKey;
+  final String titulo;
+  final String corpo;
 
-  const StreakAlertaProfessor({
-    required this.alunoId,
-    required this.nome,
-    required this.estado,
-    required this.semanas,
+  const _StreakEventoNotificacao({
+    required this.eventoKey,
+    required this.titulo,
+    required this.corpo,
   });
-
-  String get tituloExibicao {
-    final primeiro = nome.trim().split(RegExp(r'\s+')).first;
-    if (estado == StreakEstado.fogo) {
-      return '🔥 $primeiro — $semanas semana${semanas == 1 ? '' : 's'} ativa${semanas == 1 ? '' : 's'}';
-    }
-    return '❄️ $primeiro — $semanas semana${semanas == 1 ? '' : 's'} sem atividade';
-  }
-
-  String get resumoNotificacao {
-    if (estado == StreakEstado.fogo) {
-      return 'Streak de fogo · $semanas semana${semanas == 1 ? '' : 's'}';
-    }
-    return 'Streak de gelo · $semanas semana${semanas == 1 ? '' : 's'} sem atividade';
-  }
 }
 
 /// Detalhe de streak de um aluno (visão do professor).

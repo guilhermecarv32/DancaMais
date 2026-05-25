@@ -100,6 +100,12 @@ Recálculo ao marcar/desfazer `aprendido` e ao abrir telas relevantes (fallback)
 
 Formato professor: `🔥 Maria — 4 semanas ativas` / `❄️ João — 3 semanas sem atividade` (ícone **antes** do texto).
 
+Regras de notificação para professor:
+
+- Notificar quando o aluno mudar de estado de streak entre **fogo**, **neutro** e **gelo**.
+- Notificar quando o aluno completar **3 semanas** na mesma streak (**fogo** ou **gelo**).
+- Não reenviar notificação apenas porque o aluno continua no mesmo estado; novos alertas dependem de mudança de estado ou novo marco de 3 semanas em outra sequência.
+
 Escopo:
 
 - Professor: alunos das **modalidades** dele.

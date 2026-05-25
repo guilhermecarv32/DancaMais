@@ -141,8 +141,7 @@ class NotificationsHubSheet extends StatelessWidget {
                                     onSolicitacoesEntrada:
                                         onSolicitacoesEntrada,
                                   ),
-                                  onOcultar: () =>
-                                      notifSvc.ocultar(uid, n.id),
+                                  onOcultar: () => notifSvc.ocultar(uid, n.id),
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -311,6 +310,9 @@ Future<_ProfessorHubData> _carregarHub(
   NotificationService notifSvc,
 ) async {
   if (professorUid.isNotEmpty) {
+    await StreakService().recalcularAlunosNoEscopoProfessor(
+      modalidadesFiltro: modalidades,
+    );
     await notifSvc.sincronizarPendenciasProfessor(
       professorUid: professorUid,
       modalidadesFiltro: modalidades,

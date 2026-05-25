@@ -1,8 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../logic/streak/streak_service.dart';
 import '../../models/models.dart';
-import '../../models/notificacao_model.dart';
-import '../../models/turma_model.dart';
 
 class NotificationService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -97,8 +94,10 @@ class NotificationService {
     final uids = <String>{};
     if (turma.professorId.isNotEmpty) uids.add(turma.professorId);
 
-    final profs =
-        await _db.collection('usuarios').where('tipo', isEqualTo: 'professor').get();
+    final profs = await _db
+        .collection('usuarios')
+        .where('tipo', isEqualTo: 'professor')
+        .get();
     for (final d in profs.docs) {
       final data = d.data();
       if (data['isAdmin'] == true) {
@@ -139,7 +138,7 @@ class NotificationService {
 
     final primeiroNome = alunoNome.trim().split(RegExp(r'\s+')).first;
     final titulo = '$primeiroNome — $movimentacaoNome';
-    final corpo = 'Validar passo da semana';
+    const corpo = 'Validar passo da semana';
 
     final notificados = <String>{};
 
@@ -200,49 +199,56 @@ class NotificationService {
     }
   }
 
-  /// Alertas de streak viram notificações na subcoleção do professor (dá para limpar uma a uma).
-  Future<void> sincronizarAlertasStreak({
-    required String professorUid,
-    required List<String>? modalidadesFiltro,
+  /// Cria notificação de evento de streak para professores do escopo do aluno.
+  Future<void> notificarStreakAlerta({
+    required String alunoId,
+    required String titulo,
+    required String corpo,
+    required String eventoKey,
   }) async {
-    if (professorUid.isEmpty) return;
-
-    final streakSvc = StreakService();
-    final alertas = await streakSvc.listarAlertasProfessor(
-      modalidadesFiltro: modalidadesFiltro,
-    );
-    final alunoIdsAtivos = <String>{};
-
-    for (final a in alertas) {
-      alunoIdsAtivos.add(a.alunoId);
-      if (await _notificacaoExiste(
-        usuarioId: professorUid,
-        refId: a.alunoId,
-        refTipo: 'streak_alerta',
-      )) {
-        continue;
-      }
-      await criar(
-        usuarioId: professorUid,
-        tipo: NotificacaoTipo.streakAlerta,
-        titulo: a.tituloExibicao,
-        corpo: a.resumoNotificacao,
-        refId: a.alunoId,
-        refTipo: 'streak_alerta',
-      );
-    }
-
-    final snap = await _notifs(professorUid)
-        .where('refTipo', isEqualTo: 'streak_alerta')
-        .where('oculto', isEqualTo: false)
+    final inscSnap = await _db
+        .collection('inscricoes')
+        .where('alunoId', isEqualTo: alunoId)
         .get();
-    for (final d in snap.docs) {
-      final alunoId = d.data()['refId'] as String?;
-      if (alunoId != null && !alunoIdsAtivos.contains(alunoId)) {
-        await d.reference.update({'oculto': true, 'lido': true});
+    if (inscSnap.docs.isEmpty) return;
+
+    final refTipo = 'streak_alerta_$eventoKey';
+    final notificados = <String>{};
+
+    for (final insc in inscSnap.docs) {
+      final turmaId = insc.data()['turmaId'] as String?;
+      if (turmaId == null || turmaId.isEmpty) continue;
+
+      final turmaDoc = await _db.collection('turmas').doc(turmaId).get();
+      if (!turmaDoc.exists) continue;
+
+      final turma = TurmaModel.fromFirestore(turmaDoc);
+      for (final profUid in await _professorUidsParaTurma(turma)) {
+        if (!notificados.add(profUid)) continue;
+        if (await _notificacaoExiste(
+          usuarioId: profUid,
+          refId: alunoId,
+          refTipo: refTipo,
+        )) {
+          continue;
+        }
+        await criar(
+          usuarioId: profUid,
+          tipo: NotificacaoTipo.streakAlerta,
+          titulo: titulo,
+          corpo: corpo,
+          refId: alunoId,
+          refTipo: refTipo,
+        );
       }
     }
   }
+
+  /// Streaks agora notificam por evento no recálculo, não por estado atual.
+  Future<void> sincronizarAlertasStreak({
+    required String professorUid,
+    required List<String>? modalidadesFiltro,
+  }) async {}
 
   /// Garante notificações para pendências já existentes (ex.: antes do deploy).
   Future<void> sincronizarPendenciasProfessor({
@@ -333,8 +339,7 @@ class NotificationService {
           final alunoId = (data['alunoId'] as String?) ?? '';
           if (alunoId.isEmpty) continue;
           final alunoDoc = await _db.collection('usuarios').doc(alunoId).get();
-          final nome =
-              (alunoDoc.data()?['nome'] as String?) ?? 'Aluno';
+          final nome = (alunoDoc.data()?['nome'] as String?) ?? 'Aluno';
           itens.add(ValidacaoPendenteItem(
             alunoId: alunoId,
             alunoNome: nome,
